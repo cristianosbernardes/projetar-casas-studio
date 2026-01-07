@@ -2,14 +2,23 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Bed, Bath, Car, Maximize, Home, MapPin, ChevronLeft, ChevronRight,
-  Download, MessageCircle, Share2
+  Download, Share2
 } from 'lucide-react';
 import { useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import PackageSelector from '@/components/projects/PackageSelector';
 import { supabase, getOptimizedImageUrl } from '@/integrations/supabase/client';
-import type { ProjectWithImages } from '@/types/database';
+import type { ProjectWithImages, PackageType } from '@/types/database';
+
+const packageNames: Record<PackageType, string> = {
+  architectural: 'Arquitetônico',
+  electrical: 'Elétrico',
+  hydraulic: 'Hidráulico',
+  sanitary: 'Sanitário',
+  structural: 'Estrutural',
+};
 
 const ProjectDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -40,9 +49,10 @@ const ProjectDetailPage = () => {
     }).format(price);
   };
 
-  const handleWhatsApp = () => {
+  const handleWhatsAppWithPackages = (selected: PackageType[], total: number) => {
     const phoneNumber = '5593999999999';
-    const message = `Olá! Gostaria de mais informações sobre o projeto: ${project?.title}`;
+    const packageList = selected.map(pkg => packageNames[pkg]).join(', ');
+    const message = `Olá! Gostaria de adquirir o projeto "${project?.title}".\n\nProjetos selecionados: ${packageList}\nValor total: ${formatPrice(total)}\n\nPode me enviar mais informações?`;
     window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -106,6 +116,13 @@ const ProjectDetailPage = () => {
   const prevImage = () => {
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
+
+  // Check if complementary projects are available
+  const hasComplementaryProjects = 
+    (project.price_electrical && project.price_electrical > 0) ||
+    (project.price_hydraulic && project.price_hydraulic > 0) ||
+    (project.price_sanitary && project.price_sanitary > 0) ||
+    (project.price_structural && project.price_structural > 0);
 
   return (
     <Layout>
@@ -261,28 +278,43 @@ const ProjectDetailPage = () => {
                   </div>
                 </div>
 
-                {/* Price */}
-                <div className="pt-4 border-t border-border">
-                  <p className="text-sm text-muted-foreground mb-1">Valor do Projeto</p>
-                  <p className="text-4xl font-bold text-primary">{formatPrice(project.price)}</p>
-                </div>
+                {/* Package Selector or Simple Price */}
+                {hasComplementaryProjects ? (
+                  <PackageSelector
+                    project={project}
+                    onWhatsAppClick={handleWhatsAppWithPackages}
+                  />
+                ) : (
+                  <>
+                    {/* Price */}
+                    <div className="pt-4 border-t border-border">
+                      <p className="text-sm text-muted-foreground mb-1">Valor do Projeto Arquitetônico</p>
+                      <p className="text-4xl font-bold text-primary">{formatPrice(project.price)}</p>
+                    </div>
 
-                {/* Actions */}
-                <div className="space-y-3">
-                  <Button className="w-full" size="lg" onClick={handleWhatsApp}>
-                    <MessageCircle className="h-5 w-5 mr-2" />
-                    Falar no WhatsApp
+                    {/* Actions */}
+                    <div className="space-y-3">
+                      <Button 
+                        className="w-full" 
+                        size="lg" 
+                        onClick={() => handleWhatsAppWithPackages(['architectural'], project.price)}
+                      >
+                        Solicitar via WhatsApp
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                {/* Secondary actions */}
+                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border">
+                  <Button variant="outline" size="lg">
+                    <Download className="h-5 w-5 mr-2" />
+                    Info PDF
                   </Button>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button variant="outline" size="lg">
-                      <Download className="h-5 w-5 mr-2" />
-                      Info
-                    </Button>
-                    <Button variant="outline" size="lg" onClick={handleShare}>
-                      <Share2 className="h-5 w-5 mr-2" />
-                      Compartilhar
-                    </Button>
-                  </div>
+                  <Button variant="outline" size="lg" onClick={handleShare}>
+                    <Share2 className="h-5 w-5 mr-2" />
+                    Compartilhar
+                  </Button>
                 </div>
               </div>
 

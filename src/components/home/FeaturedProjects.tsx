@@ -43,6 +43,10 @@ const FeaturedProjects = () => {
       style: 'Moderno',
       is_featured: true,
       created_at: new Date().toISOString(),
+      price_electrical: 180,
+      price_hydraulic: 150,
+      price_sanitary: 120,
+      price_structural: 280,
       project_images: [],
     },
     {
@@ -61,6 +65,10 @@ const FeaturedProjects = () => {
       style: 'Contemporâneo',
       is_featured: true,
       created_at: new Date().toISOString(),
+      price_electrical: 220,
+      price_hydraulic: 180,
+      price_sanitary: 150,
+      price_structural: 350,
       project_images: [],
     },
     {
@@ -79,6 +87,10 @@ const FeaturedProjects = () => {
       style: 'Moderno',
       is_featured: true,
       created_at: new Date().toISOString(),
+      price_electrical: 100,
+      price_hydraulic: 80,
+      price_sanitary: 70,
+      price_structural: 150,
       project_images: [],
     },
   ];
