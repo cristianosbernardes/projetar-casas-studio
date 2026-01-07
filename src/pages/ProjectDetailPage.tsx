@@ -9,8 +9,9 @@ import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ProjectAddons from '@/components/checkout/ProjectAddons';
-import { ModificationRequestDialog } from '@/components/modals/ModificationRequestDialog';
+import { ModificationJourneyDialog } from '@/components/modals/ModificationJourneyDialog';
 import { supabase, getOptimizedImageUrl } from '@/integrations/supabase/client';
+import { formatCurrency } from "@/lib/utils";
 import type { ProjectWithImages, PackageType } from '@/types/database';
 
 const packageNames: Record<PackageType, string> = {
@@ -138,11 +139,12 @@ const ProjectDetailPage = () => {
         </nav>
 
         <div className="grid lg:grid-cols-3 gap-8 lg:gap-12">
-          {/* Left column - Images and details */}
+          {/* Left column - Images and Descriptions (Storytelling) */}
           <div className="lg:col-span-2 space-y-8">
+
             {/* Main Image Carousel */}
             <div className="relative">
-              <div className="aspect-[16/9] rounded-2xl overflow-hidden bg-muted">
+              <div className="aspect-[16/9] rounded-2xl overflow-hidden bg-muted shadow-sm hover:shadow-md transition-shadow">
                 {currentImage ? (
                   <img
                     src={getOptimizedImageUrl(currentImage.image_url, { width: 1200, quality: 85 })}
@@ -161,13 +163,13 @@ const ProjectDetailPage = () => {
                 <>
                   <button
                     onClick={prevImage}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-sm"
                   >
                     <ChevronLeft className="h-6 w-6" />
                   </button>
                   <button
                     onClick={nextImage}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-sm"
                   >
                     <ChevronRight className="h-6 w-6" />
                   </button>
@@ -176,7 +178,7 @@ const ProjectDetailPage = () => {
 
               {/* Image counter */}
               {images.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-background/80 backdrop-blur-sm text-sm">
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-background/80 backdrop-blur-sm text-sm font-medium">
                   {currentImageIndex + 1} / {images.length}
                 </div>
               )}
@@ -184,12 +186,12 @@ const ProjectDetailPage = () => {
 
             {/* Thumbnail gallery */}
             {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-2">
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
                 {images.map((image, index) => (
                   <button
                     key={image.id}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${index === currentImageIndex ? 'border-primary' : 'border-transparent'
+                    className={`shrink-0 w-24 h-24 rounded-lg overflow-hidden border-2 transition-all ${index === currentImageIndex ? 'border-gray-900 ring-2 ring-gray-200' : 'border-transparent opacity-70 hover:opacity-100'
                       }`}
                   >
                     <img
@@ -202,171 +204,146 @@ const ProjectDetailPage = () => {
               </div>
             )}
 
-            {/* Description */}
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-foreground">Descrição do Projeto</h2>
-              <p className="text-muted-foreground leading-relaxed">
-                {project.description ||
-                  'Este projeto foi desenvolvido para oferecer o máximo de conforto e funcionalidade para sua família. Com ambientes bem distribuídos e acabamentos de qualidade, este é o lar ideal para você.'}
-              </p>
+            {/* Description Section */}
+            <div className="space-y-4 pt-4 border-t border-gray-100">
+              <h2 className="text-2xl font-bold text-gray-900">Sobre o Projeto</h2>
+              <div
+                className="prose prose-green prose-lg max-w-none text-gray-600 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: project.description || '<p>Este projeto foi desenvolvido para oferecer o máximo de conforto e funcionalidade para sua família.</p>' }}
+              />
             </div>
 
-            {/* Specifications */}
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-foreground">Especificações Técnicas</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-muted rounded-xl">
-                  <p className="text-sm text-muted-foreground mb-1">Área Construída</p>
-                  <p className="text-xl font-semibold">{project.built_area}m²</p>
+            {/* Full Tech Specs */}
+            <div className="space-y-6 pt-4 border-t border-gray-100 pb-12">
+              <h2 className="text-2xl font-bold text-gray-900">Ficha Técnica Completa</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 font-medium">Estilo</span>
+                  <span className="font-bold text-gray-900">{project.style || 'Moderno'}</span>
                 </div>
-                <div className="p-4 bg-muted rounded-xl">
-                  <p className="text-sm text-muted-foreground mb-1">Terreno Mínimo</p>
-                  <p className="text-xl font-semibold">{project.width_meters}m x {project.depth_meters}m</p>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 font-medium">Área Construída</span>
+                  <span className="font-bold text-gray-900">{project.built_area}m²</span>
                 </div>
-                <div className="p-4 bg-muted rounded-xl">
-                  <p className="text-sm text-muted-foreground mb-1">Estilo</p>
-                  <p className="text-xl font-semibold">{project.style || 'Moderno'}</p>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 font-medium">Terreno Mínimo</span>
+                  <span className="font-bold text-gray-900">{project.width_meters}m x {project.depth_meters}m</span>
                 </div>
+                {project.suites > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <span className="text-gray-600 font-medium">Suítes</span>
+                    <span className="font-bold text-gray-900">{project.suites}</span>
+                  </div>
+                )}
+                {project.garage_spots > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-lg shadow-sm">
+                    <span className="text-gray-600 font-medium">Vagas de Garagem</span>
+                    <span className="font-bold text-gray-900">{project.garage_spots}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Right column - Purchase card */}
+          {/* Right column - Sticky Premium Buy Box */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
-              <div className="card-premium p-6 space-y-6">
-                {/* Title and badges */}
-                <div className="space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    {project.is_featured && (
-                      <Badge className="bg-accent text-accent-foreground">Destaque</Badge>
-                    )}
-                    <Badge variant="secondary">{project.style || 'Moderno'}</Badge>
+            <div className="sticky top-24 space-y-4">
+              <div className="bg-[#F3F4F6] rounded-2xl shadow-xl border border-gray-200 overflow-hidden transform transition-all duration-300 hover:shadow-2xl">
+
+                {/* Header (Title & Code) */}
+                <div className="p-6 pb-4 border-b border-gray-100 bg-gray-50/30">
+                  <div className="space-y-4">
+                    {/* Badges Row */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-2">
+                        {project.is_featured && (
+                          <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white border-0 shadow-sm px-2">Destaque</Badge>
+                        )}
+                        <Badge variant="outline" className="bg-white text-gray-700 border-gray-200">
+                          {project.style || 'Moderno'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-gray-200 shadow-sm">
+                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cód.</span>
+                        <span className="text-sm font-bold text-gray-900">{project.id?.slice(0, 4)}</span>
+                      </div>
+                    </div>
+
+                    <h1 className="text-2xl font-extrabold text-gray-900 leading-tight tracking-tight">{project.title}</h1>
+
+                    {/* Visual Stats Grid */}
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-gray-100 shadow-sm hover:border-green-200 transition-colors group">
+                        <Bed className="h-4 w-4 text-gray-400 group-hover:text-green-500 mb-1 transition-colors" />
+                        <span className="font-bold text-gray-900 text-sm leading-none">{project.bedrooms}</span>
+                        <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wide mt-1">Quartos</span>
+                      </div>
+                      <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-gray-100 shadow-sm hover:border-green-200 transition-colors group">
+                        <Bath className="h-4 w-4 text-gray-400 group-hover:text-green-500 mb-1 transition-colors" />
+                        <span className="font-bold text-gray-900 text-sm leading-none">{project.bathrooms}</span>
+                        <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wide mt-1">Banh.</span>
+                      </div>
+                      <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-gray-100 shadow-sm hover:border-green-200 transition-colors group">
+                        <Maximize className="h-4 w-4 text-gray-400 group-hover:text-green-500 mb-1 transition-colors" />
+                        <span className="font-bold text-gray-900 text-sm leading-none">{project.built_area}m²</span>
+                        <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wide mt-1">Área</span>
+                      </div>
+                      <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-gray-100 shadow-sm hover:border-green-200 transition-colors group">
+                        <MapPin className="h-4 w-4 text-gray-400 group-hover:text-green-500 mb-1 transition-colors" />
+                        <span className="font-bold text-gray-900 text-sm leading-none">{project.width_meters}x{project.depth_meters}</span>
+                        <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wide mt-1">Dim.</span>
+                      </div>
+                    </div>
                   </div>
-                  <h1 className="text-2xl font-bold text-foreground">{project.title}</h1>
                 </div>
 
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Bed className="h-5 w-5" />
-                    <span>{project.bedrooms} Quartos</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Bath className="h-5 w-5" />
-                    <span>{project.bathrooms} Banheiros</span>
-                  </div>
-                  {project.suites > 0 && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Bed className="h-5 w-5" />
-                      <span>{project.suites} Suíte{project.suites > 1 ? 's' : ''}</span>
-                    </div>
-                  )}
-                  {project.garage_spots > 0 && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Car className="h-5 w-5" />
-                      <span>{project.garage_spots} Vaga{project.garage_spots > 1 ? 's' : ''}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Maximize className="h-5 w-5" />
-                    <span>{project.built_area}m²</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="h-5 w-5" />
-                    <span>{project.width_meters}x{project.depth_meters}m</span>
-                  </div>
-                </div>
-
-                {/* Package Selector or Simple Price */}
-                {hasComplementaryProjects ? (
-                  <ProjectAddons
-                    project={project}
-                    onCheckout={async (selected, total) => {
-                      try {
-                        // Use dynamic import or direct import if environment allows relative imports from api/
-                        // Since api/ is outside src/, standard import might fail depending on Vite config.
-                        // For this environment, we'll assume we can copy the mock logic or fetch it if it were a real endpoint.
-                        // But since it's a TS file, let's try to import it if alias is set, otherwise we'll fetch.
-                        // Ideally, we should fetch '/api/mock-checkout'.
-
-                        // Let's use fetch for better simulation of client-server interaction
-                        const response = await fetch('/api/mock-checkout', { // This endpoint won't work without Vercel running backend
-                          // So for local dev without Vercel CLI, we might need a direct function call or a temporary workaround.
-                          // Given the user wants to see it working, I'll implement the mock logic directly here securely, 
-                          // OR better: I'll import the function if I can.
-                          // Let's rely on a direct simulation here to ensure it works in the browser immediately.
-                          method: 'POST',
-                          body: JSON.stringify({ projectId: project.id, addons: selected })
-                        });
-
-                        // Check if response is ok or if we are in pure client mode
-                        // For the purpose of this task, let's simulate the delay and alert directly to avoid 404s on local dev.
-                        console.log('Checkout initiated for:', project.title, selected);
-
-                        // Show loading state (you might want to add a loading state to ProjectAddons or here)
-                        // Assuming ProjectAddons handles its own loading or we pass it? 
-                        // The current ProjectAddons component exposes onCheckout. 
-
-                        // Simulation:
-                        await new Promise(r => setTimeout(r, 1500));
-
-                        alert(`Pagamento Simulado com Sucesso!\n\nProjeto: ${project.title}\nAdicionais: ${selected.join(', ')}\nTotal: ${formatPrice(total)}\n\n(ID da Sessão: mock_${Date.now()})`);
-
-                      } catch (error) {
-                        console.error('Checkout error:', error);
-                        alert('Erro ao iniciar checkout.');
-                      }
-                    }}
-                  />
-                ) : (
-                  <>
-                    {/* Price */}
-                    <div className="pt-4 border-t border-border">
-                      <p className="text-sm text-muted-foreground mb-1">Valor do Projeto Arquitetônico</p>
-                      <p className="text-4xl font-bold text-primary">{formatPrice(project.price)}</p>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="space-y-3">
+                <div className="p-6 pt-4 space-y-6">
+                  {/* Addons & Price */}
+                  {hasComplementaryProjects ? (
+                    <ProjectAddons
+                      project={project}
+                      onCheckout={async (selected, total) => {
+                        try {
+                          const response = await fetch('/api/mock-checkout', {
+                            method: 'POST',
+                            body: JSON.stringify({ projectId: project.id, addons: selected })
+                          });
+                          console.log('Checkout initiated for:', project.title, selected);
+                          await new Promise(r => setTimeout(r, 1500));
+                          alert(`Pagamento Simulado com Sucesso!\n\nProjeto: ${project.title}\nAdicionais: ${selected.join(', ')}\nTotal: ${formatCurrency(total)}\n\n(ID da Sessão: mock_${Date.now()})`);
+                        } catch (error) {
+                          console.error('Checkout error:', error);
+                          alert('Erro ao iniciar checkout.');
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                        <span className="block text-3xl font-bold text-gray-900">{formatCurrency(project.price)}</span>
+                        <span className="text-xs text-muted-foreground">O melhor custo benefício</span>
+                      </div>
                       <Button
-                        className="w-full"
-                        size="lg"
+                        className="w-full h-12 font-bold text-base bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200"
                         onClick={() => handleWhatsAppWithPackages(['architectural'], project.price)}
                       >
-                        Solicitar via WhatsApp
+                        Comprar Agora
                       </Button>
                     </div>
-                  </>
-                )}
+                  )}
 
-                {/* Secondary actions */}
-                <div className="space-y-3 pt-4 border-t border-border">
-                  <ModificationRequestDialog
-                    projectTitle={project.title}
-                    projectSlug={project.slug}
-                  />
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button variant="outline" size="lg">
-                      <Download className="h-5 w-5 mr-2" />
-                      Info PDF
-                    </Button>
-                    <Button variant="outline" size="lg" onClick={handleShare}>
-                      <Share2 className="h-5 w-5 mr-2" />
-                      Compartilhar
-                    </Button>
+                  {/* Secondary Actions */}
+                  <div className="space-y-3 pt-2">
+                    <ModificationJourneyDialog projectTitle={project.title} />
                   </div>
                 </div>
               </div>
 
-              {/* Trust badges */}
-              <div className="p-4 bg-secondary rounded-xl text-center">
-                <p className="text-sm text-secondary-foreground">
-                  ✓ Entrega imediata após pagamento<br />
-                  ✓ Suporte técnico incluso<br />
-                  ✓ Pagamento seguro
-                </p>
+              {/* Security Banner */}
+              <div className="flex items-center justify-center gap-4 text-[10px] text-gray-400 font-medium opacity-80">
+                <span className="flex items-center gap-1">🔒 SSL Seguro</span>
+                <span className="flex items-center gap-1">⚡ Entrega Digital</span>
+                <span className="flex items-center gap-1">⭐ Suporte VIP</span>
               </div>
             </div>
           </div>

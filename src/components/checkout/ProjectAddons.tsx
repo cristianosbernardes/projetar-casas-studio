@@ -1,8 +1,13 @@
 import { useState, useMemo } from 'react';
-import { Check, Zap, Droplets, Wrench, Building2, FileText, Sparkles, CreditCard, Lock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { Check, Info, Sparkles, BookOpen, CreditCard, Zap, Droplets, Wrench, Building2, ChevronDown, ChevronUp, Lock } from 'lucide-react';
+import { formatCurrency, cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+    HoverCard,
+    HoverCardContent,
+    HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import { Button } from "@/components/ui/button";
 import type { Project, PackageType } from '@/types/database';
 
 interface AddonOption {
@@ -11,49 +16,36 @@ interface AddonOption {
     description: string;
     icon: React.ReactNode;
     priceKey: 'price' | 'price_electrical' | 'price_hydraulic' | 'price_sanitary' | 'price_structural';
-    features: string[];
 }
 
 const ADDONS: AddonOption[] = [
     {
-        id: 'architectural',
-        name: 'Projeto Arquitetônico',
-        description: 'Projeto completo com detalhamento executivo',
-        icon: <FileText className="h-5 w-5" />,
-        priceKey: 'price',
-        features: ['Plantas Baixas', 'Fachadas', 'Cortes', 'Quadro de Esquadrias', 'Memorial Descritivo'],
-    },
-    {
         id: 'electrical',
-        name: 'Projeto Elétrico',
-        description: 'Dimensionamento e pontos elétricos',
-        icon: <Zap className="h-5 w-5" />,
+        name: 'Elétrico',
+        description: 'Pontos de energia, iluminação e tomadas.',
+        icon: <Zap className="h-4 w-4" />,
         priceKey: 'price_electrical',
-        features: ['Pontos de Iluminação', 'Tomadas', 'Quadro de Distribuição', 'Fiação e Conduítes'],
     },
     {
         id: 'hydraulic',
-        name: 'Projeto Hidráulico',
-        description: 'Rede de água fria e quente',
-        icon: <Droplets className="h-5 w-5" />,
+        name: 'Hidráulico',
+        description: 'Água fria, água quente e esgoto.',
+        icon: <Droplets className="h-4 w-4" />,
         priceKey: 'price_hydraulic',
-        features: ['Rede de Água Fria', 'Água Quente', 'Detalhamento Isométrico', 'Lista de Materiais'],
     },
     {
         id: 'sanitary',
-        name: 'Projeto Sanitário',
-        description: 'Esgoto e águas pluviais',
-        icon: <Wrench className="h-5 w-5" />,
+        name: 'Sanitário',
+        description: 'Esgoto e tratamento de resíduos.',
+        icon: <Wrench className="h-4 w-4" />,
         priceKey: 'price_sanitary',
-        features: ['Tubulação de Esgoto', 'Caixas de Gordura/Inspeção', 'Águas Pluviais', 'Fossa Séptica (se necess.)'],
     },
     {
         id: 'structural',
-        name: 'Projeto Estrutural',
-        description: 'Cálculos e detalhamento da estrutura',
-        icon: <Building2 className="h-5 w-5" />,
+        name: 'Estrutural',
+        description: 'Fundações, vigas e pilares.',
+        icon: <Building2 className="h-4 w-4" />,
         priceKey: 'price_structural',
-        features: ['Fundação', 'Pilares e Vigas', 'Lajes', 'Armaduras e Ferragens'],
     },
 ];
 
@@ -63,169 +55,170 @@ interface ProjectAddonsProps {
     isLoading?: boolean;
 }
 
-const BUNDLE_DISCOUNT = 0.15; // 15% de desconto para pacote completo
-
-export default function ProjectAddons({ project, onCheckout, isLoading = false }: ProjectAddonsProps) {
-    // Architectural always selected by default
-    const [selectedAddons, setSelectedAddons] = useState<PackageType[]>(['architectural']);
-
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-        }).format(price);
-    };
+export default function ProjectAddons({ project, onCheckout, isLoading }: ProjectAddonsProps) {
+    const [selectedAddons, setSelectedAddons] = useState<PackageType[]>([]);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const getAddonPrice = (addon: AddonOption): number => {
         return Number(project[addon.priceKey]) || 0;
     };
 
-    // Filter only addons that have a price set in the database
     const availableAddons = useMemo(() => {
         return ADDONS.filter(addon => getAddonPrice(addon) > 0);
     }, [project]);
 
-    const { subtotal, discount, total, isCompleteBundle } = useMemo(() => {
-        const sub = selectedAddons.reduce((sum, id) => {
-            const addon = ADDONS.find(a => a.id === id);
-            return sum + (addon ? getAddonPrice(addon) : 0);
-        }, 0);
-
-        const allAvailableSelected = availableAddons.every(addon =>
-            selectedAddons.includes(addon.id)
-        );
-
-        // Only apply discount if we have more than just the base project and all available are selected
-        const isComplete = allAvailableSelected && availableAddons.length > 2;
-        const disc = isComplete ? sub * BUNDLE_DISCOUNT : 0;
-
-        return {
-            subtotal: sub,
-            discount: disc,
-            total: sub - disc,
-            isCompleteBundle: isComplete,
-        };
-    }, [selectedAddons, availableAddons]);
-
-    const toggleAddon = (id: PackageType) => {
-        if (id === 'architectural') return; // Cannot unselect base project
-
-        setSelectedAddons(prev =>
-            prev.includes(id)
-                ? prev.filter(item => item !== id)
-                : [...prev, id]
+    const toggleAddon = (addonId: PackageType) => {
+        setSelectedAddons((prev) =>
+            prev.includes(addonId)
+                ? prev.filter((id) => id !== addonId)
+                : [...prev, addonId]
         );
     };
 
-    const selectAll = () => {
-        setSelectedAddons(availableAddons.map(a => a.id));
-    };
+    const addonsTotal = availableAddons.reduce(
+        (acc, addon) => (selectedAddons.includes(addon.id) ? acc + getAddonPrice(addon) : acc),
+        0
+    );
 
-    if (availableAddons.length === 0) return null;
+    const basePrice = project.price;
+    const finalTotal = basePrice + addonsTotal;
+    const isCompletePackage = availableAddons.length > 0 && selectedAddons.length === availableAddons.length;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 animate-in fade-in duration-500">
 
+            {/* Base Product - Always Visible */}
+            <div className="bg-gray-50/50 border border-gray-100 rounded-xl p-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-gray-900 text-white flex items-center justify-center shadow-sm">
+                        <Check className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold text-gray-900 leading-tight">Projeto Arquitetônico</p>
+                        <p className="text-[10px] text-green-600 font-medium uppercase tracking-wide">Item Obrigatório</p>
+                    </div>
+                </div>
+                <span className="font-bold text-gray-900">{formatCurrency(basePrice)}</span>
+            </div>
 
-            {/* Discount Banner */}
-            {availableAddons.length > 2 && !isCompleteBundle && (
-                <div className="bg-primary/5 border border-primary/10 rounded-lg p-3 flex items-center gap-3">
-                    <Sparkles className="h-5 w-5 text-primary fill-primary/20" />
-                    <p className="text-sm">
-                        <span className="font-semibold text-primary">Dica:</span> Leve o pacote completo e ganhe{' '}
-                        <span className="font-bold text-green-600">{Math.round(BUNDLE_DISCOUNT * 100)}% de desconto</span>!
+            {/* Collapsible Addons Section */}
+            {availableAddons.length > 0 && (
+                <div className="border border-gray-200 rounded-xl overflow-hidden transition-all duration-300">
+                    <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="w-full flex items-center justify-between p-3 bg-white hover:bg-gray-50 transition-colors"
+                    >
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-700 uppercase tracking-widest flex items-center gap-2">
+                                <Sparkles className="h-3 w-3 text-yellow-500" />
+                                Personalizar ({availableAddons.length} Opcionais)
+                            </span>
+                            {selectedAddons.length > 0 && (
+                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">
+                                    {selectedAddons.length} selecionados
+                                </span>
+                            )}
+                        </div>
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                    </button>
+
+                    {isExpanded && (
+                        <div className="border-t border-gray-100 bg-gray-50/30 divide-y divide-gray-100">
+                            {availableAddons.map((addon) => {
+                                const isSelected = selectedAddons.includes(addon.id);
+                                return (
+                                    <div
+                                        key={addon.id}
+                                        className={cn(
+                                            "flex items-center p-3 transition-colors cursor-pointer group hover:bg-white",
+                                            isSelected ? "bg-green-50/30" : ""
+                                        )}
+                                        onClick={() => toggleAddon(addon.id)}
+                                    >
+                                        <Checkbox
+                                            id={addon.id}
+                                            checked={isSelected}
+                                            className="mr-3 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 h-4 w-4 pointer-events-none"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-sm font-medium text-gray-700 truncate">{addon.name}</span>
+                                                <HoverCard openDelay={200}>
+                                                    <HoverCardTrigger asChild>
+                                                        <Info className="h-3 w-3 text-gray-400 hover:text-green-600 cursor-help flex-shrink-0" />
+                                                    </HoverCardTrigger>
+                                                    <HoverCardContent side="left" className="w-64 p-3">
+                                                        <div className="space-y-1">
+                                                            <h4 className="font-semibold text-xs text-green-700 flex items-center gap-2">
+                                                                {addon.icon} {addon.name}
+                                                            </h4>
+                                                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                                                {addon.description}
+                                                            </p>
+                                                        </div>
+                                                    </HoverCardContent>
+                                                </HoverCard>
+                                            </div>
+                                        </div>
+                                        <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                                            + {formatCurrency(getAddonPrice(addon))}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Gift Banner - Compact */}
+            {availableAddons.length > 0 && selectedAddons.length === availableAddons.length ? (
+                <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 flex gap-3 items-center animate-pulse">
+                    <div className="bg-emerald-100 p-1.5 rounded-full text-emerald-600">
+                        <BookOpen className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-xs font-bold text-emerald-800 leading-none">Brinde Desbloqueado!</p>
+                        <p className="text-[10px] text-emerald-600 mt-0.5">Você ganhou o Manual do Construtor.</p>
+                    </div>
+                </div>
+            ) : availableAddons.length > 0 && (
+                <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-2 text-center">
+                    <p className="text-[10px] text-gray-500">
+                        Selecione todos os opcionais para ganhar um <span className="font-bold text-emerald-600">Brinde Exclusivo</span>.
                     </p>
                 </div>
             )}
 
-            {/* Addons List Compact */}
-            <div className="border border-border rounded-lg overflow-hidden divide-y divide-border bg-card">
-                <div className="bg-muted px-4 py-3 border-b border-border flex justify-between items-center">
-                    <span className="font-semibold text-sm text-foreground">ITENS OPCIONAIS</span>
-                    <span className="text-xs text-muted-foreground">Selecione para adicionar</span>
-                </div>
-                {availableAddons.map((addon) => {
-                    const isSelected = selectedAddons.includes(addon.id);
-                    const isBase = addon.id === 'architectural';
-                    const price = getAddonPrice(addon);
-
-                    return (
-                        <div
-                            key={addon.id}
-                            onClick={() => toggleAddon(addon.id)}
-                            className={cn(
-                                "flex items-center justify-between p-3 transition-colors cursor-pointer hover:bg-muted/50",
-                                isSelected ? "bg-primary/5" : "bg-card",
-                                isBase && "pointer-events-none opacity-80"
-                            )}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div
-                                    className={cn(
-                                        "w-4 h-4 rounded border flex items-center justify-center transition-colors",
-                                        isSelected
-                                            ? "bg-primary border-primary text-primary-foreground"
-                                            : "border-muted-foreground/40"
-                                    )}
-                                >
-                                    {isSelected && <Check className="h-3 w-3" />}
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-sm font-medium text-foreground leading-none">
-                                        {addon.name}
-                                    </span>
-                                    {isBase && <span className="text-[10px] text-primary mt-0.5 font-bold">Obrigatório</span>}
-                                </div>
-                            </div>
-                            <span className="font-bold text-sm text-foreground">
-                                {formatPrice(price)}
-                            </span>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Summary & Action */}
-            <div className="bg-muted/30 border border-border rounded-xl p-5 space-y-4">
-                <div className="space-y-2 text-sm">
-                    <div className="flex justify-between text-muted-foreground">
-                        <span>Subtotal</span>
-                        <span>{formatPrice(subtotal)}</span>
+            <div className="space-y-3 pt-2">
+                <div className="flex items-end justify-between border-t border-gray-100 pt-3">
+                    <div>
+                        <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Final</span>
                     </div>
-                    {isCompleteBundle && (
-                        <div className="flex justify-between text-green-600 font-medium">
-                            <span className="flex items-center gap-1"><Sparkles className="w-3 h-3" /> Desconto Combo</span>
-                            <span>-{formatPrice(discount)}</span>
-                        </div>
-                    )}
-                    <div className="flex justify-between items-center pt-3 border-t border-border">
-                        <span className="text-base font-semibold">Total do Pedido</span>
-                        <div className="text-right">
-                            {isCompleteBundle && <span className="block text-xs text-muted-foreground line-through">{formatPrice(subtotal)}</span>}
-                            <span className="text-2xl font-bold text-primary">{formatPrice(total)}</span>
-                        </div>
+                    <div className="text-right">
+                        <span className="text-2xl font-black text-gray-900 tracking-tight">
+                            {formatCurrency(finalTotal)}
+                        </span>
+                        <p className="text-[10px] text-green-600 font-bold">12x de {formatCurrency(finalTotal / 12)}</p>
                     </div>
                 </div>
 
                 <Button
-                    className="w-full h-12 text-base font-semibold shadow-lg shadow-primary/20"
-                    size="lg"
-                    onClick={() => onCheckout(selectedAddons, total)}
+                    className="w-full h-12 text-sm font-bold bg-green-600 hover:bg-green-700 shadow-xl shadow-green-200/50 transition-all hover:scale-[1.01] uppercase tracking-wide rounded-xl"
+                    onClick={() => onCheckout(selectedAddons, finalTotal)}
                     disabled={isLoading}
                 >
-                    {isLoading ? (
-                        'Processando...'
-                    ) : (
+                    {isLoading ? "Processando..." : (
                         <>
-                            <CreditCard className="mr-2 h-5 w-5" />
-                            Ir para Pagamento Seguro
+                            <CreditCard className="mr-2 h-4 w-4" />
+                            Comprar Projeto Agora
                         </>
                     )}
                 </Button>
 
-                <div className="flex justify-center items-center gap-2 text-xs text-muted-foreground">
-                    <Lock className="w-3 h-3" />
-                    <span>Pagamento processado via <strong>Stripe</strong> com criptografia SSL</span>
+                <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-400">
+                    <Lock className="h-2.5 w-2.5" />
+                    <span>Pagamento Seguro SSL | Satisfação Garantida</span>
                 </div>
             </div>
         </div>

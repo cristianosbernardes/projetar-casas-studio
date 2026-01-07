@@ -135,6 +135,68 @@ export interface Database {
           created_at?: string
         }
       }
+      modification_requests: {
+        Row: {
+          id: string
+          created_at: string
+          project_id: string | null
+          project_title: string | null
+          name: string
+          email: string
+          whatsapp: string
+          topography: string | null
+          width: string | null
+          depth: string | null
+          description: string | null
+          phase: string | null
+          timeline: string | null
+          want_bbq: boolean | null
+          want_call: boolean | null
+          call_time: string | null
+          source: string | null
+          status: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          project_id?: string | null
+          project_title?: string | null
+          name: string
+          email: string
+          whatsapp: string
+          topography?: string | null
+          width?: string | null
+          depth?: string | null
+          description?: string | null
+          phase?: string | null
+          timeline?: string | null
+          want_bbq?: boolean | null
+          want_call?: boolean | null
+          call_time?: string | null
+          source?: string | null
+          status?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          project_id?: string | null
+          project_title?: string | null
+          name?: string
+          email?: string
+          whatsapp?: string
+          topography?: string | null
+          width?: string | null
+          depth?: string | null
+          description?: string | null
+          phase?: string | null
+          timeline?: string | null
+          want_bbq?: boolean | null
+          want_call?: boolean | null
+          call_time?: string | null
+          source?: string | null
+          status?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -155,6 +217,8 @@ export type ProjectImage = Database['public']['Tables']['project_images']['Row']
 export type ProjectImageInsert = Database['public']['Tables']['project_images']['Insert']
 export type Lead = Database['public']['Tables']['leads']['Row']
 export type LeadInsert = Database['public']['Tables']['leads']['Insert']
+export type ModificationRequest = Database['public']['Tables']['modification_requests']['Row']
+export type ModificationRequestInsert = Database['public']['Tables']['modification_requests']['Insert']
 
 // Helper type for project with images
 export type ProjectWithImages = Project & {

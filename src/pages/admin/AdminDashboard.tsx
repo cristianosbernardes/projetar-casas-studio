@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Edit, Trash2, Home, LogIn, Image as ImageIcon, Loader2, Save } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminImageGallery } from '@/components/admin/AdminImageGallery';
 import { AdminLeadsList } from '@/components/admin/AdminLeadsList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { RichTextEditor } from '@/components/admin/RichTextEditor';
 import type { Project, ProjectInsert } from '@/types/database';
 
 const AdminDashboard = () => {
@@ -329,10 +331,10 @@ const AdminDashboard = () => {
 
                     <div className="space-y-2">
                       <Label>Descrição Completa</Label>
-                      <Textarea
-                        rows={4}
+                      <RichTextEditor
                         value={formData.description || ''}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        onChange={(value) => setFormData({ ...formData, description: value })}
+                        placeholder="Descreva o projeto detalhadamente. Use o ícone de imagem para adicionar fotos ao corpo do texto."
                       />
                     </div>
 
@@ -435,22 +437,24 @@ const AdminDashboard = () => {
                         Galeria de Imagens
                       </CardTitle>
                       <CardDescription>
-                        Gerencie as imagens do projeto. No momento, utilize o bucket 'project-images' no Supabase.
+                        Gerencie as imagens do projeto.
                       </CardDescription>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    {/* Placeholder for future image upload/management UI */}
-                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-8 text-center hover:bg-muted/5 transition-colors cursor-pointer">
-                      <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
-                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    {editingProject?.id ? (
+                      <AdminImageGallery projectId={editingProject.id} />
+                    ) : (
+                      <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-8 text-center bg-muted/5">
+                        <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
+                          <Save className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <h3 className="font-medium text-lg mb-1">Salve o projeto primeiro</h3>
+                        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                          Para fazer o upload de imagens, primeiro preencha os dados básicos e salve o projeto.
+                        </p>
                       </div>
-                      <h3 className="font-medium text-lg mb-1">Upload de Imagens</h3>
-                      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                        Arraste e solte imagens aqui ou clique para selecionar.
-                        (Funcionalidade visual placeholder para futura integração com Storage)
-                      </p>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
 
