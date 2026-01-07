@@ -19,7 +19,12 @@ CREATE TABLE IF NOT EXISTS public.projects (
     built_area NUMERIC NOT NULL DEFAULT 0,
     style TEXT,
     is_featured BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    -- Complementary project prices
+    price_electrical NUMERIC DEFAULT 0,
+    price_hydraulic NUMERIC DEFAULT 0,
+    price_sanitary NUMERIC DEFAULT 0,
+    price_structural NUMERIC DEFAULT 0
 );
 
 -- 2. Create the project_images table
@@ -39,6 +44,9 @@ CREATE TABLE IF NOT EXISTS public.leads (
     phone TEXT,
     message TEXT,
     terrain_dimensions TEXT,
+    project_id UUID REFERENCES public.projects(id),
+    selected_packages TEXT[], -- Array of selected packages
+    total_value NUMERIC,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -112,3 +120,16 @@ CREATE POLICY "Leads are viewable by authenticated users"
 -- CREATE POLICY "Authenticated users can upload project images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'project-images');
 -- CREATE POLICY "Authenticated users can update project images" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'project-images');
 -- CREATE POLICY "Authenticated users can delete project images" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'project-images');
+
+-- =====================================================
+-- MIGRATION: Add complementary project prices to existing projects table
+-- Run this if you already have the projects table created
+-- =====================================================
+-- ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS price_electrical NUMERIC DEFAULT 0;
+-- ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS price_hydraulic NUMERIC DEFAULT 0;
+-- ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS price_sanitary NUMERIC DEFAULT 0;
+-- ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS price_structural NUMERIC DEFAULT 0;
+
+-- ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES public.projects(id);
+-- ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS selected_packages TEXT[];
+-- ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS total_value NUMERIC;

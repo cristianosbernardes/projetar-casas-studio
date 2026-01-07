@@ -26,6 +26,10 @@ export interface Database {
           style: string | null
           is_featured: boolean
           created_at: string
+          price_electrical: number | null
+          price_hydraulic: number | null
+          price_sanitary: number | null
+          price_structural: number | null
         }
         Insert: {
           id?: string
@@ -43,6 +47,10 @@ export interface Database {
           style?: string | null
           is_featured?: boolean
           created_at?: string
+          price_electrical?: number | null
+          price_hydraulic?: number | null
+          price_sanitary?: number | null
+          price_structural?: number | null
         }
         Update: {
           id?: string
@@ -60,6 +68,10 @@ export interface Database {
           style?: string | null
           is_featured?: boolean
           created_at?: string
+          price_electrical?: number | null
+          price_hydraulic?: number | null
+          price_sanitary?: number | null
+          price_structural?: number | null
         }
       }
       project_images: {
@@ -93,6 +105,9 @@ export interface Database {
           phone: string | null
           message: string | null
           terrain_dimensions: string | null
+          project_id: string | null
+          selected_packages: string[] | null
+          total_value: number | null
           created_at: string
         }
         Insert: {
@@ -102,6 +117,9 @@ export interface Database {
           phone?: string | null
           message?: string | null
           terrain_dimensions?: string | null
+          project_id?: string | null
+          selected_packages?: string[] | null
+          total_value?: number | null
           created_at?: string
         }
         Update: {
@@ -111,6 +129,9 @@ export interface Database {
           phone?: string | null
           message?: string | null
           terrain_dimensions?: string | null
+          project_id?: string | null
+          selected_packages?: string[] | null
+          total_value?: number | null
           created_at?: string
         }
       }
@@ -138,4 +159,15 @@ export type LeadInsert = Database['public']['Tables']['leads']['Insert']
 // Helper type for project with images
 export type ProjectWithImages = Project & {
   project_images: ProjectImage[]
+}
+
+// Package types
+export type PackageType = 'architectural' | 'electrical' | 'hydraulic' | 'sanitary' | 'structural'
+
+export interface PackageOption {
+  id: PackageType
+  name: string
+  description: string
+  icon: string
+  priceKey: keyof Project
 }
