@@ -18,7 +18,7 @@ const Footer = () => {
               <span className="text-xl font-bold">Projetar Casas</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Plantas de casas prontas para você construir o lar dos seus sonhos. 
+              Plantas de casas prontas para você construir o lar dos seus sonhos.
               Projetos arquitetônicos de qualidade com preços acessíveis.
             </p>
           </div>
@@ -40,6 +40,11 @@ const Footer = () => {
               <li>
                 <Link to="/contato" className="hover:text-primary transition-colors">
                   Fale Conosco
+                </Link>
+              </li>
+              <li>
+                <Link to="/admin" className="hover:text-primary transition-colors">
+                  Login
                 </Link>
               </li>
             </ul>

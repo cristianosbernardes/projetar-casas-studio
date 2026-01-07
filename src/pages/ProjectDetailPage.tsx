@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { 
+import {
   Bed, Bath, Car, Maximize, Home, MapPin, ChevronLeft, ChevronRight,
   Download, Share2
 } from 'lucide-react';
@@ -8,7 +8,8 @@ import { useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import PackageSelector from '@/components/projects/PackageSelector';
+import ProjectAddons from '@/components/checkout/ProjectAddons';
+import { ModificationRequestDialog } from '@/components/modals/ModificationRequestDialog';
 import { supabase, getOptimizedImageUrl } from '@/integrations/supabase/client';
 import type { ProjectWithImages, PackageType } from '@/types/database';
 
@@ -35,7 +36,7 @@ const ProjectDetailPage = () => {
         `)
         .eq('slug', slug)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data as ProjectWithImages | null;
     },
@@ -118,7 +119,7 @@ const ProjectDetailPage = () => {
   };
 
   // Check if complementary projects are available
-  const hasComplementaryProjects = 
+  const hasComplementaryProjects =
     (project.price_electrical && project.price_electrical > 0) ||
     (project.price_hydraulic && project.price_hydraulic > 0) ||
     (project.price_sanitary && project.price_sanitary > 0) ||
@@ -126,7 +127,7 @@ const ProjectDetailPage = () => {
 
   return (
     <Layout>
-      <div className="section-container py-8 lg:py-12">
+      <div className="section-container pt-4 pb-8 lg:pt-6 lg:pb-12">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
           <a href="/" className="hover:text-primary">Início</a>
@@ -188,9 +189,8 @@ const ProjectDetailPage = () => {
                   <button
                     key={image.id}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
-                      index === currentImageIndex ? 'border-primary' : 'border-transparent'
-                    }`}
+                    className={`shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${index === currentImageIndex ? 'border-primary' : 'border-transparent'
+                      }`}
                   >
                     <img
                       src={getOptimizedImageUrl(image.image_url, { width: 160, quality: 70 })}
@@ -206,7 +206,7 @@ const ProjectDetailPage = () => {
             <div className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">Descrição do Projeto</h2>
               <p className="text-muted-foreground leading-relaxed">
-                {project.description || 
+                {project.description ||
                   'Este projeto foi desenvolvido para oferecer o máximo de conforto e funcionalidade para sua família. Com ambientes bem distribuídos e acabamentos de qualidade, este é o lar ideal para você.'}
               </p>
             </div>
@@ -280,9 +280,44 @@ const ProjectDetailPage = () => {
 
                 {/* Package Selector or Simple Price */}
                 {hasComplementaryProjects ? (
-                  <PackageSelector
+                  <ProjectAddons
                     project={project}
-                    onWhatsAppClick={handleWhatsAppWithPackages}
+                    onCheckout={async (selected, total) => {
+                      try {
+                        // Use dynamic import or direct import if environment allows relative imports from api/
+                        // Since api/ is outside src/, standard import might fail depending on Vite config.
+                        // For this environment, we'll assume we can copy the mock logic or fetch it if it were a real endpoint.
+                        // But since it's a TS file, let's try to import it if alias is set, otherwise we'll fetch.
+                        // Ideally, we should fetch '/api/mock-checkout'.
+
+                        // Let's use fetch for better simulation of client-server interaction
+                        const response = await fetch('/api/mock-checkout', { // This endpoint won't work without Vercel running backend
+                          // So for local dev without Vercel CLI, we might need a direct function call or a temporary workaround.
+                          // Given the user wants to see it working, I'll implement the mock logic directly here securely, 
+                          // OR better: I'll import the function if I can.
+                          // Let's rely on a direct simulation here to ensure it works in the browser immediately.
+                          method: 'POST',
+                          body: JSON.stringify({ projectId: project.id, addons: selected })
+                        });
+
+                        // Check if response is ok or if we are in pure client mode
+                        // For the purpose of this task, let's simulate the delay and alert directly to avoid 404s on local dev.
+                        console.log('Checkout initiated for:', project.title, selected);
+
+                        // Show loading state (you might want to add a loading state to ProjectAddons or here)
+                        // Assuming ProjectAddons handles its own loading or we pass it? 
+                        // The current ProjectAddons component exposes onCheckout. 
+
+                        // Simulation:
+                        await new Promise(r => setTimeout(r, 1500));
+
+                        alert(`Pagamento Simulado com Sucesso!\n\nProjeto: ${project.title}\nAdicionais: ${selected.join(', ')}\nTotal: ${formatPrice(total)}\n\n(ID da Sessão: mock_${Date.now()})`);
+
+                      } catch (error) {
+                        console.error('Checkout error:', error);
+                        alert('Erro ao iniciar checkout.');
+                      }
+                    }}
                   />
                 ) : (
                   <>
@@ -294,9 +329,9 @@ const ProjectDetailPage = () => {
 
                     {/* Actions */}
                     <div className="space-y-3">
-                      <Button 
-                        className="w-full" 
-                        size="lg" 
+                      <Button
+                        className="w-full"
+                        size="lg"
                         onClick={() => handleWhatsAppWithPackages(['architectural'], project.price)}
                       >
                         Solicitar via WhatsApp
@@ -306,15 +341,22 @@ const ProjectDetailPage = () => {
                 )}
 
                 {/* Secondary actions */}
-                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border">
-                  <Button variant="outline" size="lg">
-                    <Download className="h-5 w-5 mr-2" />
-                    Info PDF
-                  </Button>
-                  <Button variant="outline" size="lg" onClick={handleShare}>
-                    <Share2 className="h-5 w-5 mr-2" />
-                    Compartilhar
-                  </Button>
+                <div className="space-y-3 pt-4 border-t border-border">
+                  <ModificationRequestDialog
+                    projectTitle={project.title}
+                    projectSlug={project.slug}
+                  />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button variant="outline" size="lg">
+                      <Download className="h-5 w-5 mr-2" />
+                      Info PDF
+                    </Button>
+                    <Button variant="outline" size="lg" onClick={handleShare}>
+                      <Share2 className="h-5 w-5 mr-2" />
+                      Compartilhar
+                    </Button>
+                  </div>
                 </div>
               </div>
 

@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Upload, Home, LogIn, Image } from 'lucide-react';
-import Layout from '@/components/layout/Layout';
+import { Edit, Trash2, Home, LogIn, Image as ImageIcon, Loader2, Save } from 'lucide-react';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminLeadsList } from '@/components/admin/AdminLeadsList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Project, ProjectInsert } from '@/types/database';
@@ -16,14 +16,18 @@ import type { Project, ProjectInsert } from '@/types/database';
 const AdminDashboard = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
+
+  // View State
+  const [currentView, setCurrentView] = useState<'properties' | 'leads' | 'create'>('properties');
+
+  // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // Form state
+  // Form/Edit State
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [formData, setFormData] = useState<Partial<ProjectInsert>>({
     title: '',
     slug: '',
@@ -45,14 +49,11 @@ const AdminDashboard = () => {
   });
 
   // Check auth status on mount
-  const { data: session } = useQuery({
-    queryKey: ['session'],
-    queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setIsAuthenticated(true);
-      return session;
-    },
-  });
+    });
+  }, []);
 
   // Fetch projects
   const { data: projects, isLoading } = useQuery({
@@ -68,49 +69,43 @@ const AdminDashboard = () => {
     enabled: isAuthenticated,
   });
 
-  // Login mutation
+  // Login Handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginLoading(true);
-    
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoginLoading(false);
 
     if (error) {
-      toast({
-        title: 'Erro ao fazer login',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao fazer login', description: error.message, variant: 'destructive' });
     } else {
       setIsAuthenticated(true);
-      toast({
-        title: 'Login realizado!',
-        description: 'Bem-vindo ao painel administrativo.',
-      });
+      toast({ title: 'Login realizado!', description: 'Bem-vindo ao painel administrativo.' });
     }
   };
 
-  // Create/Update project mutation
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsAuthenticated(false);
+    toast({ title: 'Logout realizado' });
+  };
+
+  // Projects Mutation
   const projectMutation = useMutation({
     mutationFn: async (data: ProjectInsert) => {
       if (editingProject) {
-        // @ts-ignore - Supabase types not synced yet
+        // @ts-ignore
         const { error } = await supabase.from('projects').update(data).eq('id', editingProject.id);
         if (error) throw error;
       } else {
-        // @ts-ignore - Supabase types not synced yet
+        // @ts-ignore
         const { error } = await supabase.from('projects').insert([data]);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
-      setIsDialogOpen(false);
+      setCurrentView('properties');
       resetForm();
       toast({
         title: editingProject ? 'Projeto atualizado!' : 'Projeto criado!',
@@ -118,51 +113,28 @@ const AdminDashboard = () => {
       });
     },
     onError: (error) => {
-      toast({
-        title: 'Erro ao salvar projeto',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao salvar projeto', description: error.message, variant: 'destructive' });
     },
   });
 
-  // Delete project mutation
+  // Delete Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', id) as any;
+      const { error } = await supabase.from('projects').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
-      toast({
-        title: 'Projeto excluído!',
-        description: 'O projeto foi removido com sucesso.',
-      });
+      toast({ title: 'Projeto excluído!', description: 'O projeto foi removido com sucesso.' });
     },
   });
 
   const resetForm = () => {
     setFormData({
-      title: '',
-      slug: '',
-      description: '',
-      price: 0,
-      width_meters: 0,
-      depth_meters: 0,
-      bedrooms: 0,
-      bathrooms: 0,
-      suites: 0,
-      garage_spots: 0,
-      built_area: 0,
-      style: 'Moderno',
-      is_featured: false,
-      price_electrical: 0,
-      price_hydraulic: 0,
-      price_sanitary: 0,
-      price_structural: 0,
+      title: '', slug: '', description: '', price: 0, width_meters: 0, depth_meters: 0,
+      bedrooms: 0, bathrooms: 0, suites: 0, garage_spots: 0, built_area: 0,
+      style: 'Moderno', is_featured: false, price_electrical: 0, price_hydraulic: 0,
+      price_sanitary: 0, price_structural: 0,
     });
     setEditingProject(null);
   };
@@ -170,382 +142,335 @@ const AdminDashboard = () => {
   const handleEdit = (project: Project) => {
     setEditingProject(project);
     setFormData(project);
-    setIsDialogOpen(true);
+    setCurrentView('create'); // Reuse create view for editing
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Generate slug from title if empty
     const slug = formData.slug || formData.title?.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
-    
-    projectMutation.mutate({
-      ...formData,
-      slug,
-    } as ProjectInsert);
+    projectMutation.mutate({ ...formData, slug } as ProjectInsert);
   };
 
   const generateSlug = () => {
     if (formData.title) {
-      const slug = formData.title
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/[^\w-]/g, '');
+      const slug = formData.title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-').replace(/[^\w-]/g, '');
       setFormData({ ...formData, slug });
     }
   };
 
-  // Login screen
+  // Login View
   if (!isAuthenticated) {
     return (
-      <Layout>
-        <div className="min-h-[70vh] flex items-center justify-center">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <div className="w-16 h-16 rounded-2xl bg-primary mx-auto mb-4 flex items-center justify-center">
-                <Home className="h-8 w-8 text-primary-foreground" />
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 rounded-2xl bg-primary mx-auto mb-4 flex items-center justify-center">
+              <Home className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-2xl">Admin - Projetar Casas</CardTitle>
+            <CardDescription>Faça login para acessar o painel</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">E-mail</Label>
+                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
-              <CardTitle className="text-2xl">Admin - Projetar Casas</CardTitle>
-              <p className="text-muted-foreground">
-                Faça login para acessar o painel administrativo
-              </p>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={loginLoading}>
-                  <LogIn className="h-4 w-4 mr-2" />
-                  {loginLoading ? 'Entrando...' : 'Entrar'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      </Layout>
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha</Label>
+                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              </div>
+              <Button type="submit" className="w-full" disabled={loginLoading}>
+                <LogIn className="h-4 w-4 mr-2" />
+                {loginLoading ? 'Entrando...' : 'Entrar'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="section-container py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Painel Administrativo</h1>
-            <p className="text-muted-foreground">Gerencie os projetos de casas</p>
-          </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetForm}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Projeto
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingProject ? 'Editar Projeto' : 'Novo Projeto'}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Título *</Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      onBlur={generateSlug}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="slug">Slug (URL)</Label>
-                    <Input
-                      id="slug"
-                      value={formData.slug}
-                      onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                      placeholder="gerado-automaticamente"
-                    />
-                  </div>
-                </div>
+    <div className="min-h-screen bg-background text-foreground">
+      <AdminSidebar
+        currentView={currentView} // Reuse create view effectively for editing state too if handled
+        onViewChange={(view) => {
+          if (view === 'create') resetForm();
+          setCurrentView(view);
+        }}
+        onLogout={handleLogout}
+      />
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description || ''}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                  />
-                </div>
+      <main className="ml-64 p-8">
+        <div className="max-w-6xl mx-auto space-y-8">
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="price">Preço (R$) *</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="built_area">Área (m²) *</Label>
-                    <Input
-                      id="built_area"
-                      type="number"
-                      value={formData.built_area}
-                      onChange={(e) => setFormData({ ...formData, built_area: parseFloat(e.target.value) })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="width">Frente (m) *</Label>
-                    <Input
-                      id="width"
-                      type="number"
-                      step="0.5"
-                      value={formData.width_meters}
-                      onChange={(e) => setFormData({ ...formData, width_meters: parseFloat(e.target.value) })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="depth">Fundo (m) *</Label>
-                    <Input
-                      id="depth"
-                      type="number"
-                      step="0.5"
-                      value={formData.depth_meters}
-                      onChange={(e) => setFormData({ ...formData, depth_meters: parseFloat(e.target.value) })}
-                      required
-                    />
-                  </div>
+          {/* PROPERTIES LIST VIEW */}
+          {currentView === 'properties' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-3xl font-bold">Meus Projetos</h1>
+                  <p className="text-muted-foreground">Gerencie seu portfólio de projetos</p>
                 </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="bedrooms">Quartos</Label>
-                    <Input
-                      id="bedrooms"
-                      type="number"
-                      value={formData.bedrooms}
-                      onChange={(e) => setFormData({ ...formData, bedrooms: parseInt(e.target.value) })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bathrooms">Banheiros</Label>
-                    <Input
-                      id="bathrooms"
-                      type="number"
-                      value={formData.bathrooms}
-                      onChange={(e) => setFormData({ ...formData, bathrooms: parseInt(e.target.value) })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="suites">Suítes</Label>
-                    <Input
-                      id="suites"
-                      type="number"
-                      value={formData.suites}
-                      onChange={(e) => setFormData({ ...formData, suites: parseInt(e.target.value) })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="garage">Garagem</Label>
-                    <Input
-                      id="garage"
-                      type="number"
-                      value={formData.garage_spots}
-                      onChange={(e) => setFormData({ ...formData, garage_spots: parseInt(e.target.value) })}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="style">Estilo</Label>
-                    <Input
-                      id="style"
-                      value={formData.style || ''}
-                      onChange={(e) => setFormData({ ...formData, style: e.target.value })}
-                      placeholder="Moderno, Rústico, etc."
-                    />
-                  </div>
-                  <div className="flex items-center gap-3 pt-8">
-                    <Switch
-                      id="featured"
-                      checked={formData.is_featured}
-                      onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
-                    />
-                    <Label htmlFor="featured">Projeto em destaque</Label>
-                  </div>
-                </div>
-
-                {/* Complementary Projects Prices */}
-                <div className="space-y-4 pt-4 border-t">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    💼 Preços dos Projetos Complementares
-                    <span className="text-xs text-muted-foreground font-normal">
-                      (deixe 0 para não oferecer)
-                    </span>
-                  </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="price_electrical">⚡ Elétrico (R$)</Label>
-                      <Input
-                        id="price_electrical"
-                        type="number"
-                        value={formData.price_electrical || 0}
-                        onChange={(e) => setFormData({ ...formData, price_electrical: parseFloat(e.target.value) || 0 })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price_hydraulic">💧 Hidráulico (R$)</Label>
-                      <Input
-                        id="price_hydraulic"
-                        type="number"
-                        value={formData.price_hydraulic || 0}
-                        onChange={(e) => setFormData({ ...formData, price_hydraulic: parseFloat(e.target.value) || 0 })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price_sanitary">🚿 Sanitário (R$)</Label>
-                      <Input
-                        id="price_sanitary"
-                        type="number"
-                        value={formData.price_sanitary || 0}
-                        onChange={(e) => setFormData({ ...formData, price_sanitary: parseFloat(e.target.value) || 0 })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price_structural">🏗️ Estrutural (R$)</Label>
-                      <Input
-                        id="price_structural"
-                        type="number"
-                        value={formData.price_structural || 0}
-                        onChange={(e) => setFormData({ ...formData, price_structural: parseFloat(e.target.value) || 0 })}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={projectMutation.isPending}>
-                    {projectMutation.isPending ? 'Salvando...' : 'Salvar Projeto'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Projects Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Projetos Cadastrados</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 bg-muted rounded animate-pulse" />
-                ))}
+                <Button onClick={() => { resetForm(); setCurrentView('create'); }}>
+                  <Home className="mr-2 h-4 w-4" />
+                  Novo Projeto
+                </Button>
               </div>
-            ) : projects?.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Home className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum projeto cadastrado ainda.</p>
-                <p className="text-sm">Clique em "Novo Projeto" para começar.</p>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Projetos Cadastrados ({projects?.length || 0})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="space-y-4 py-8 text-center text-muted-foreground">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                      Carregando projetos...
+                    </div>
+                  ) : projects?.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Home className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Nenhum projeto cadastrado ainda.</p>
+                      <Button variant="link" onClick={() => setCurrentView('create')}>Cadastrar o primeiro</Button>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border">
+                      {projects?.map((project) => (
+                        <div key={project.id} className="flex items-center justify-between py-4">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-lg">{project.title}</h3>
+                            <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                              <span>R$ {project.price.toLocaleString('pt-BR')}</span>
+                              <span>•</span>
+                              <span>{project.built_area}m²</span>
+                              <span>•</span>
+                              <span>{project.bedrooms} Quartos</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {project.is_featured && <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded font-medium">Destaque</span>}
+                            <Button variant="outline" size="sm" onClick={() => handleEdit(project)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="w-10 px-0"
+                              onClick={() => {
+                                if (confirm('Tem certeza que deseja excluir?')) deleteMutation.mutate(project.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* LEADS VIEW */}
+          {currentView === 'leads' && (
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-3xl font-bold">Mensagens</h1>
+                <p className="text-muted-foreground">Solicitações de orçamento e contato</p>
               </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {projects?.map((project) => (
-                  <div key={project.id} className="flex items-center justify-between py-4">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-foreground">{project.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {project.width_meters}m x {project.depth_meters}m • {project.built_area}m² • 
-                        R$ {project.price.toLocaleString('pt-BR')}
+              <AdminLeadsList />
+            </div>
+          )}
+
+          {/* CREATE / EDIT VIEW */}
+          {currentView === 'create' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold">{editingProject ? 'Editar Projeto' : 'Cadastrar Novo Projeto'}</h1>
+                  <p className="text-muted-foreground">Preencha os dados completos do projeto</p>
+                </div>
+                <Button variant="outline" onClick={() => setCurrentView('properties')}>
+                  Cancelar e Voltar
+                </Button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Basic Info */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Informações Básicas</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label>Título do Projeto *</Label>
+                        <Input
+                          value={formData.title}
+                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                          onBlur={generateSlug}
+                          placeholder="Ex: Casa Térrea Moderna"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Slug (URL Amigável)</Label>
+                        <Input
+                          value={formData.slug}
+                          onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                          placeholder="casa-terrea-moderna"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Descrição Completa</Label>
+                      <Textarea
+                        rows={4}
+                        value={formData.description || ''}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-6 pt-2">
+                      <div className="flex items-center gap-3 border p-4 rounded-lg bg-accent/5">
+                        <Switch
+                          checked={formData.is_featured}
+                          onCheckedChange={(c) => setFormData({ ...formData, is_featured: c })}
+                        />
+                        <Label>Destacar este imóvel na Home</Label>
+                      </div>
+                      <div className="border p-4 rounded-lg bg-accent/5">
+                        <Label>Estilo Arquitetônico</Label>
+                        <Input
+                          className="mt-2 bg-background"
+                          value={formData.style || ''}
+                          onChange={(e) => setFormData({ ...formData, style: e.target.value })}
+                          placeholder="Ex: Moderno, Neoclássico"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Dimensions & Characteristics */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Dimensões e Características</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="space-y-2">
+                      <Label>Preço do Projeto (R$) *</Label>
+                      <Input type="number" value={formData.price} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Área Construída (m²) *</Label>
+                      <Input type="number" value={formData.built_area} onChange={e => setFormData({ ...formData, built_area: Number(e.target.value) })} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Frente Terreno (m)</Label>
+                      <Input type="number" step="0.1" value={formData.width_meters} onChange={e => setFormData({ ...formData, width_meters: Number(e.target.value) })} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Fundo Terreno (m)</Label>
+                      <Input type="number" step="0.1" value={formData.depth_meters} onChange={e => setFormData({ ...formData, depth_meters: Number(e.target.value) })} required />
+                    </div>
+
+                    {/* Rooms */}
+                    <div className="space-y-2">
+                      <Label>Quartos</Label>
+                      <Input type="number" value={formData.bedrooms} onChange={e => setFormData({ ...formData, bedrooms: Number(e.target.value) })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Suítes</Label>
+                      <Input type="number" value={formData.suites} onChange={e => setFormData({ ...formData, suites: Number(e.target.value) })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Banheiros</Label>
+                      <Input type="number" value={formData.bathrooms} onChange={e => setFormData({ ...formData, bathrooms: Number(e.target.value) })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Vagas Garagem</Label>
+                      <Input type="number" value={formData.garage_spots} onChange={e => setFormData({ ...formData, garage_spots: Number(e.target.value) })} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Additional Projects Prices */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Preços dos Projetos Complementares</CardTitle>
+                    <CardDescription>Defina os valores individuais. Mantenha 0 para não oferecer.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="space-y-2">
+                      <Label>⚡ Elétrico (R$)</Label>
+                      <Input type="number" value={formData.price_electrical} onChange={e => setFormData({ ...formData, price_electrical: Number(e.target.value) })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>💧 Hidráulico (R$)</Label>
+                      <Input type="number" value={formData.price_hydraulic} onChange={e => setFormData({ ...formData, price_hydraulic: Number(e.target.value) })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>🚿 Sanitário (R$)</Label>
+                      <Input type="number" value={formData.price_sanitary} onChange={e => setFormData({ ...formData, price_sanitary: Number(e.target.value) })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>🏗️ Estrutural (R$)</Label>
+                      <Input type="number" value={formData.price_structural} onChange={e => setFormData({ ...formData, price_structural: Number(e.target.value) })} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Images Section */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <ImageIcon className="h-5 w-5" />
+                        Galeria de Imagens
+                      </CardTitle>
+                      <CardDescription>
+                        Gerencie as imagens do projeto. No momento, utilize o bucket 'project-images' no Supabase.
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Placeholder for future image upload/management UI */}
+                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-8 text-center hover:bg-muted/5 transition-colors cursor-pointer">
+                      <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
+                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <h3 className="font-medium text-lg mb-1">Upload de Imagens</h3>
+                      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                        Arraste e solte imagens aqui ou clique para selecionar.
+                        (Funcionalidade visual placeholder para futura integração com Storage)
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {project.is_featured && (
-                        <span className="text-xs px-2 py-1 bg-accent text-accent-foreground rounded">
-                          Destaque
-                        </span>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(project)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          if (confirm('Tem certeza que deseja excluir este projeto?')) {
-                            deleteMutation.mutate(project.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  </CardContent>
+                </Card>
 
-        {/* Image Upload Section Info */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Image className="h-5 w-5" />
-              Upload de Imagens
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              Para fazer upload de imagens para os projetos, você pode usar o bucket 
-              "project-images" do Supabase Storage.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              As imagens são automaticamente convertidas para WebP ao serem exibidas no site, 
-              otimizando a performance.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </Layout>
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button type="button" variant="outline" size="lg" onClick={() => setCurrentView('properties')}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" size="lg" className="min-w-[150px]" disabled={projectMutation.isPending}>
+                    {projectMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Salvar Projeto
+                  </Button>
+                </div>
+
+              </form>
+            </div>
+          )}
+
+        </div>
+      </main>
+    </div>
   );
 };
 

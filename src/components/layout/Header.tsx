@@ -1,11 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Phone, Mail, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
   const location = useLocation();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 400) {
+        setIsHidden(true);
+      } else {
+        setIsHidden(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const navLinks = [
     { href: '/', label: 'Início' },
@@ -17,7 +31,10 @@ const Header = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <header
+      className={`sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-transform duration-300 ${isHidden ? '-translate-y-full' : 'translate-y-0'
+        }`}
+    >
       {/* Top bar with contact info */}
       <div className="hidden sm:block bg-primary text-primary-foreground py-2">
         <div className="section-container flex justify-end items-center gap-6 text-sm">
@@ -56,11 +73,10 @@ const Header = () => {
               <Link
                 key={link.href}
                 to={link.href}
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive(link.href)
-                    ? 'text-primary'
-                    : 'text-muted-foreground'
-                }`}
+                className={`text-sm font-medium transition-colors hover:text-primary ${isActive(link.href)
+                  ? 'text-primary'
+                  : 'text-muted-foreground'
+                  }`}
               >
                 {link.label}
               </Link>
@@ -69,11 +85,6 @@ const Header = () => {
 
           {/* CTA Button */}
           <div className="hidden md:flex items-center gap-4">
-            <Link to="/admin">
-              <Button variant="outline" size="sm">
-                Admin
-              </Button>
-            </Link>
             <Link to="/projetos">
               <Button size="sm">
                 Ver Projetos
@@ -99,21 +110,15 @@ const Header = () => {
                   key={link.href}
                   to={link.href}
                   onClick={() => setIsMenuOpen(false)}
-                  className={`text-sm font-medium py-2 transition-colors ${
-                    isActive(link.href)
-                      ? 'text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                  className={`text-sm font-medium py-2 transition-colors ${isActive(link.href)
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                    }`}
                 >
                   {link.label}
                 </Link>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <Link to="/admin" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="outline" className="w-full">
-                    Admin
-                  </Button>
-                </Link>
                 <Link to="/projetos" onClick={() => setIsMenuOpen(false)}>
                   <Button className="w-full">
                     Ver Projetos
