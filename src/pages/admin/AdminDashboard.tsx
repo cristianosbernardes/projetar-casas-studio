@@ -38,6 +38,10 @@ const AdminDashboard = () => {
     built_area: 0,
     style: 'Moderno',
     is_featured: false,
+    price_electrical: 0,
+    price_hydraulic: 0,
+    price_sanitary: 0,
+    price_structural: 0,
   });
 
   // Check auth status on mount
@@ -155,6 +159,10 @@ const AdminDashboard = () => {
       built_area: 0,
       style: 'Moderno',
       is_featured: false,
+      price_electrical: 0,
+      price_hydraulic: 0,
+      price_sanitary: 0,
+      price_structural: 0,
     });
     setEditingProject(null);
   };
@@ -396,6 +404,54 @@ const AdminDashboard = () => {
                       onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
                     />
                     <Label htmlFor="featured">Projeto em destaque</Label>
+                  </div>
+                </div>
+
+                {/* Complementary Projects Prices */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h4 className="font-medium text-foreground flex items-center gap-2">
+                    💼 Preços dos Projetos Complementares
+                    <span className="text-xs text-muted-foreground font-normal">
+                      (deixe 0 para não oferecer)
+                    </span>
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="price_electrical">⚡ Elétrico (R$)</Label>
+                      <Input
+                        id="price_electrical"
+                        type="number"
+                        value={formData.price_electrical || 0}
+                        onChange={(e) => setFormData({ ...formData, price_electrical: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="price_hydraulic">💧 Hidráulico (R$)</Label>
+                      <Input
+                        id="price_hydraulic"
+                        type="number"
+                        value={formData.price_hydraulic || 0}
+                        onChange={(e) => setFormData({ ...formData, price_hydraulic: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="price_sanitary">🚿 Sanitário (R$)</Label>
+                      <Input
+                        id="price_sanitary"
+                        type="number"
+                        value={formData.price_sanitary || 0}
+                        onChange={(e) => setFormData({ ...formData, price_sanitary: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="price_structural">🏗️ Estrutural (R$)</Label>
+                      <Input
+                        id="price_structural"
+                        type="number"
+                        value={formData.price_structural || 0}
+                        onChange={(e) => setFormData({ ...formData, price_structural: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
                   </div>
                 </div>
 
