@@ -9,25 +9,37 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, Phone, Loader2, User } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MessageSquare, Phone, Loader2, User, Eye, Calendar, Map, CheckCircle2, Clock } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ModificationRequest } from '@/types/database';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useState } from "react";
 
 export function AdminLeadsList() {
+    const [selectedRequest, setSelectedRequest] = useState<ModificationRequest | null>(null);
+
     // Buscar leads do Supabase
     const { data: leads, isLoading } = useQuery({
         queryKey: ['modification_requests'],
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('modification_requests')
-                .select('*')
+                .select('*, projects(code)')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            return data as ModificationRequest[];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return data as any[];
         },
     });
 
@@ -78,9 +90,16 @@ export function AdminLeadsList() {
                                 </TableCell>
                                 <TableCell>
                                     <div className="font-medium">{lead.project_title || 'Projeto Removido'}</div>
-                                    <Badge variant="outline" className="mt-1 lowercase">
-                                        {lead.phase === 'idea' ? 'Ideia' : lead.phase === 'planning' ? 'Planejamento' : 'Pronto para Construir'}
-                                    </Badge>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        {lead.projects?.code && (
+                                            <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                                                {lead.projects.code}
+                                            </span>
+                                        )}
+                                        <Badge variant="outline" className="lowercase">
+                                            {lead.phase === 'idea' ? 'Ideia' : lead.phase === 'planning' ? 'Planejamento' : 'Pronto para Construir'}
+                                        </Badge>
+                                    </div>
                                 </TableCell>
                                 <TableCell>
                                     <div className="space-y-1">
@@ -96,6 +115,15 @@ export function AdminLeadsList() {
                                     {format(new Date(lead.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
                                 </TableCell>
                                 <TableCell className="text-right">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        title="Ver detalhes"
+                                        className="mr-2"
+                                        onClick={() => setSelectedRequest(lead)}
+                                    >
+                                        <Eye className="h-4 w-4" />
+                                    </Button>
                                     <Button size="sm" variant="outline" onClick={() => window.open(`https://wa.me/55${lead.whatsapp.replace(/\D/g, '')}`, '_blank')}>
                                         <MessageSquare className="h-4 w-4" />
                                     </Button>
@@ -104,6 +132,128 @@ export function AdminLeadsList() {
                         ))}
                     </TableBody>
                 </Table>
+
+                <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
+                    <DialogContent className="max-w-2xl max-h-[90vh]">
+                        <DialogHeader>
+                            <DialogTitle>Detalhes da Solicitação</DialogTitle>
+                            <DialogDescription>
+                                Enviado em {selectedRequest && format(new Date(selectedRequest.created_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {selectedRequest && (
+                            <ScrollArea className="h-full max-h-[60vh] pr-4">
+                                <div className="space-y-6">
+                                    {/* Cliente */}
+                                    <div className="bg-muted/30 p-4 rounded-lg space-y-3">
+                                        <h3 className="font-semibold flex items-center gap-2">
+                                            <User className="h-4 w-4" /> Dados do Cliente
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <span className="text-muted-foreground block">Nome:</span>
+                                                <span className="font-medium">{selectedRequest.name}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-muted-foreground block">Email:</span>
+                                                <span className="font-medium">{selectedRequest.email}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-muted-foreground block">WhatsApp:</span>
+                                                <span className="font-medium flex items-center gap-1">
+                                                    <Phone className="h-3 w-3" /> {selectedRequest.whatsapp}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Projeto */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="border p-4 rounded-lg space-y-2">
+                                            <h3 className="font-semibold text-sm text-primary">Projeto de Interesse</h3>
+                                            <p className="font-medium">{selectedRequest.project_title || 'Não identificado'}</p>
+                                        </div>
+                                        <div className="border p-4 rounded-lg space-y-2">
+                                            <h3 className="font-semibold text-sm text-primary">Fase da Obra</h3>
+                                            <Badge variant="outline" className="text-sm">
+                                                {selectedRequest.phase === 'idea' ? 'Apenas uma ideia' :
+                                                    selectedRequest.phase === 'planning' ? 'Planejamento' :
+                                                        'Pronto para Construir'}
+                                            </Badge>
+                                        </div>
+                                    </div>
+
+                                    {/* Terreno */}
+                                    <div className="space-y-3">
+                                        <h3 className="font-semibold flex items-center gap-2">
+                                            <Map className="h-4 w-4" /> Informações do Terreno
+                                        </h3>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="bg-secondary/20 p-3 rounded text-center">
+                                                <span className="text-xs text-muted-foreground block uppercase">Topografia</span>
+                                                <span className="font-medium">
+                                                    {selectedRequest.topography === 'flat' ? 'Plano' :
+                                                        selectedRequest.topography === 'uphill' ? 'Aclive' : 'Declive'}
+                                                </span>
+                                            </div>
+                                            <div className="bg-secondary/20 p-3 rounded text-center">
+                                                <span className="text-xs text-muted-foreground block uppercase">Frente</span>
+                                                <span className="font-medium">{selectedRequest.width}m</span>
+                                            </div>
+                                            <div className="bg-secondary/20 p-3 rounded text-center">
+                                                <span className="text-xs text-muted-foreground block uppercase">Fundo</span>
+                                                <span className="font-medium">{selectedRequest.depth}m</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Detalhes Extras */}
+                                    <div className="space-y-3">
+                                        <h3 className="font-semibold flex items-center gap-2">
+                                            <CheckCircle2 className="h-4 w-4" /> Preferências e Detalhes
+                                        </h3>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="flex items-center gap-2 border p-3 rounded">
+                                                <div className={`w-2 h-2 rounded-full ${selectedRequest.want_bbq ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                                <span className="text-sm">Área Gourmet / Churrasqueira</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 border p-3 rounded">
+                                                <div className={`w-2 h-2 rounded-full ${selectedRequest.want_call ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                                <span className="text-sm">Aceita contato telefônico</span>
+                                            </div>
+                                        </div>
+
+                                        {selectedRequest.call_time && (
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                                                <Clock className="h-4 w-4" />
+                                                Melhor horário para contato: <span className="font-medium text-foreground">{selectedRequest.call_time}</span>
+                                            </div>
+                                        )}
+
+                                        {selectedRequest.timeline && (
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                <Calendar className="h-4 w-4" />
+                                                Previsão de início: <span className="font-medium text-foreground">{selectedRequest.timeline}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Descrição */}
+                                    {selectedRequest.description && (
+                                        <div className="space-y-2">
+                                            <h3 className="font-semibold">Mensagem / Observações</h3>
+                                            <div className="bg-muted p-4 rounded-lg text-sm leading-relaxed whitespace-pre-wrap">
+                                                "{selectedRequest.description}"
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </ScrollArea>
+                        )}
+                    </DialogContent>
+                </Dialog>
             </CardContent>
         </Card>
     );

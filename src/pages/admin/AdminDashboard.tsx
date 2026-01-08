@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, Trash2, Home, LogIn, Image as ImageIcon, Loader2, Save } from 'lucide-react';
+import { Edit, Trash2, Home, LogIn, Image as ImageIcon, Loader2, Save, ExternalLink, RefreshCcw, XCircle, Eye, EyeOff } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminImageGallery } from '@/components/admin/AdminImageGallery';
 import { AdminLeadsList } from '@/components/admin/AdminLeadsList';
@@ -13,19 +13,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { RichTextEditor } from '@/components/admin/RichTextEditor';
-import type { Project, ProjectInsert } from '@/types/database';
+import { AdminSqlEditor } from '@/components/admin/AdminSqlEditor';
+import { AdminUsersList } from '@/components/admin/AdminUsersList';
+import { useUserRole } from '@/hooks/useUserRole';
+import type { Project, ProjectInsert, ProjectWithImages } from '@/types/database';
 
-const AdminDashboard = () => {
+export default function AdminDashboard() {
+  // ... (existing code)
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // View State
-  const [currentView, setCurrentView] = useState<'properties' | 'leads' | 'create'>('properties');
+  const [currentView, setCurrentView] = useState<'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql'>('properties');
+  const { role, canDeleteProjects, canManageTeam, isEmployee, isMaster } = useUserRole();
 
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
 
   // Form/Edit State
@@ -33,6 +40,7 @@ const AdminDashboard = () => {
   const [formData, setFormData] = useState<Partial<ProjectInsert>>({
     title: '',
     slug: '',
+    code: '',
     description: '',
     price: 0,
     width_meters: 0,
@@ -63,12 +71,28 @@ const AdminDashboard = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*')
+        .select('*, project_images(image_url, is_cover)')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as ProjectWithImages[];
+    },
+    enabled: isAuthenticated && currentView !== 'trash',
+  });
+
+  // Fetch trash projects
+  const { data: trashProjects, isLoading: isTrashLoading } = useQuery({
+    queryKey: ['admin-projects-trash'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
       if (error) throw error;
       return data as Project[];
     },
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && currentView === 'trash',
   });
 
   // Login Handler
@@ -76,6 +100,13 @@ const AdminDashboard = () => {
     e.preventDefault();
     setLoginLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (!error) {
+      // Force refresh of role and projects
+      await queryClient.invalidateQueries({ queryKey: ['user-role'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
+    }
+
     setLoginLoading(false);
 
     if (error) {
@@ -94,14 +125,18 @@ const AdminDashboard = () => {
 
   // Projects Mutation
   const projectMutation = useMutation({
-    mutationFn: async (data: ProjectInsert) => {
+    mutationFn: async (data: ProjectInsert & { project_images?: any }) => {
+      // Remove project_images from data as it's a relation, not a column
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { project_images, ...projectData } = data;
+
       if (editingProject) {
         // @ts-ignore
-        const { error } = await supabase.from('projects').update(data).eq('id', editingProject.id);
+        const { error } = await supabase.from('projects').update(projectData).eq('id', editingProject.id);
         if (error) throw error;
       } else {
         // @ts-ignore
-        const { error } = await supabase.from('projects').insert([data]);
+        const { error } = await supabase.from('projects').insert([projectData]);
         if (error) throw error;
       }
     },
@@ -119,17 +154,79 @@ const AdminDashboard = () => {
     },
   });
 
-  // Delete Mutation
+  // Soft Delete Mutation
   const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('projects')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-projects-trash'] });
+      toast({ title: 'Projeto movido para a lixeira', description: 'Você pode restaurá-lo na seção Lixeira.' });
+    },
+  });
+
+  // Restore Mutation
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('projects')
+        .update({ deleted_at: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-projects-trash'] });
+      toast({ title: 'Projeto restaurado!', description: 'O projeto voltou para a lista principal.' });
+    },
+  });
+
+  // Permanent Delete Mutation
+  const permanentDeleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('projects').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
-      toast({ title: 'Projeto excluído!', description: 'O projeto foi removido com sucesso.' });
+      queryClient.invalidateQueries({ queryKey: ['admin-projects-trash'] });
+      toast({ title: 'Projeto excluído permanentemente', description: 'Esta ação não pode ser desfeita.' });
     },
   });
+
+  // Empty Trash
+  const emptyTrashMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .not('deleted_at', 'is', null);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-projects-trash'] });
+      toast({ title: 'Lixeira esvaziada', description: 'Todos os itens foram removidos permanentemente.' });
+    },
+  });
+
+  // Code Logic
+  const checkCodeDuplication = (code: string) => {
+    if (!code || !projects) return;
+    const isDuplicate = projects.some(p => p.code === code && p.id !== editingProject?.id);
+    if (isDuplicate) {
+      toast({
+        title: "Código duplicado detectado",
+        description: `O código ${code} já está em uso por outro projeto.`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const lastCode = projects?.find(p => p.code)?.code; // Projects are ordered by created_at desc, so first one with code is the last created
 
   const resetForm = () => {
     setFormData({
@@ -137,6 +234,7 @@ const AdminDashboard = () => {
       bedrooms: 0, bathrooms: 0, suites: 0, garage_spots: 0, built_area: 0,
       style: 'Moderno', is_featured: false, price_electrical: 0, price_hydraulic: 0,
       price_sanitary: 0, price_structural: 0,
+      code: '',
     });
     setEditingProject(null);
   };
@@ -180,7 +278,29 @@ const AdminDashboard = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Senha</Label>
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
               </div>
               <Button type="submit" className="w-full" disabled={loginLoading}>
                 <LogIn className="h-4 w-4 mr-2" />
@@ -239,37 +359,67 @@ const AdminDashboard = () => {
                     </div>
                   ) : (
                     <div className="divide-y divide-border">
-                      {projects?.map((project) => (
-                        <div key={project.id} className="flex items-center justify-between py-4">
-                          <div className="flex-1">
-                            <h3 className="font-medium text-lg">{project.title}</h3>
-                            <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                              <span>R$ {project.price.toLocaleString('pt-BR')}</span>
-                              <span>•</span>
-                              <span>{project.built_area}m²</span>
-                              <span>•</span>
-                              <span>{project.bedrooms} Quartos</span>
+                      {projects?.map((project) => {
+                        const coverImage = project.project_images?.find(img => img.is_cover)?.image_url || project.project_images?.[0]?.image_url;
+
+                        return (
+                          <div key={project.id} className="flex items-center gap-4 py-4">
+                            {/* Project Thumbnail */}
+                            <div className="h-16 w-24 bg-muted rounded-md overflow-hidden flex-shrink-0 border">
+                              {coverImage ? (
+                                <img src={coverImage} alt={project.title} className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center bg-gray-100 text-gray-400">
+                                  <ImageIcon className="h-6 w-6" />
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-medium text-lg truncate">{project.title}</h3>
+                                {project.code && (
+                                  <span className="text-xs px-2 py-0.5 bg-muted text-muted-foreground rounded font-mono">
+                                    {project.code}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                <span>R$ {project.price.toLocaleString('pt-BR')}</span>
+                                <span>•</span>
+                                <span>{project.built_area}m²</span>
+                                <span>•</span>
+                                <span>{project.bedrooms} Quartos</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {project.is_featured && <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded font-medium">Destaque</span>}
+
+                              <Button variant="outline" size="sm" onClick={() => window.open(`/projeto/${project.slug}`, '_blank')} title="Ver no site">
+                                <ExternalLink className="h-4 w-4" />
+                              </Button>
+
+                              <Button variant="outline" size="sm" onClick={() => handleEdit(project)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Editar
+                              </Button>
+                              {canDeleteProjects && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  className="w-10 px-0"
+                                  onClick={() => {
+                                    if (confirm('Tem certeza que deseja excluir?')) deleteMutation.mutate(project.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {project.is_featured && <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded font-medium">Destaque</span>}
-                            <Button variant="outline" size="sm" onClick={() => handleEdit(project)}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="w-10 px-0"
-                              onClick={() => {
-                                if (confirm('Tem certeza que deseja excluir?')) deleteMutation.mutate(project.id);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
@@ -288,6 +438,104 @@ const AdminDashboard = () => {
             </div>
           )}
 
+          {/* TRASH VIEW */}
+          {currentView === 'trash' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-3xl font-bold text-destructive">Lixeira</h1>
+                  <p className="text-muted-foreground">Gerencie projetos excluídos</p>
+                </div>
+                {trashProjects && trashProjects.length > 0 && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      if (confirm('Tem certeza que deseja esvaziar a lixeira? Todos os projetos serão excluídos permanentemente.')) {
+                        emptyTrashMutation.mutate();
+                      }
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Esvaziar Lixeira
+                  </Button>
+                )}
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Itens na Lixeira ({trashProjects?.length || 0})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isTrashLoading ? (
+                    <div className="space-y-4 py-8 text-center text-muted-foreground">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                      Carregando lixeira...
+                    </div>
+                  ) : trashProjects?.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Trash2 className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                      <p>A lixeira está vazia.</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border">
+                      {trashProjects?.map((project) => (
+                        <div key={project.id} className="flex items-center justify-between py-4 opacity-75 hover:opacity-100 transition-opacity">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-lg">{project.title}</h3>
+                            <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                              <span>Excluído em: {new Date(project.deleted_at!).toLocaleDateString()}</span>
+                              {project.code && <span>• Código: {project.code}</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => restoreMutation.mutate(project.id)}
+                              className="text-green-600 hover:text-green-700 border-green-200 hover:bg-green-50"
+                            >
+                              <RefreshCcw className="h-4 w-4 mr-2" />
+                              Restaurar
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="w-10 px-0"
+                              title="Excluir Permanentemente"
+                              onClick={() => {
+                                if (confirm('ATENÇÃO: Esta ação não pode ser desfeita. Deseja excluir permanentemente?')) {
+                                  permanentDeleteMutation.mutate(project.id);
+                                }
+                              }}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* USERS VIEW */}
+          {currentView === 'users' && canManageTeam && (
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-3xl font-bold">Gestão de Equipe</h1>
+                <p className="text-muted-foreground">Gerencie o acesso de sócios e funcionários</p>
+              </div>
+              <AdminUsersList />
+            </div>
+          )}
+
+          {/* SQL VIEW */}
+          {currentView === 'sql' && isMaster && (
+            <AdminSqlEditor />
+          )}
+
           {/* CREATE / EDIT VIEW */}
           {currentView === 'create' && (
             <div className="space-y-6">
@@ -299,6 +547,12 @@ const AdminDashboard = () => {
                 <Button variant="outline" onClick={() => setCurrentView('properties')}>
                   Cancelar e Voltar
                 </Button>
+                {editingProject && (
+                  <Button variant="ghost" className="ml-2" onClick={() => window.open(`/projeto/${editingProject.slug}`, '_blank')}>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Ver no Site
+                  </Button>
+                )}
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-8">
@@ -318,6 +572,33 @@ const AdminDashboard = () => {
                           placeholder="Ex: Casa Térrea Moderna"
                           required
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Código do Projeto *</Label>
+                        <div className="flex items-center rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                          <span className="pl-3 pr-1 text-muted-foreground font-medium select-none">COD.</span>
+                          <Input
+                            className="border-0 focus-visible:ring-0 pl-1"
+                            value={formData.code ? formData.code.replace('COD. ', '') : ''}
+                            onChange={(e) => {
+                              const numbers = e.target.value.replace(/\D/g, '');
+                              const newCode = numbers ? `COD. ${numbers}` : '';
+                              setFormData({ ...formData, code: newCode });
+                            }}
+                            onBlur={(e) => {
+                              const numbers = e.target.value.replace(/\D/g, '');
+                              const fullCode = numbers ? `COD. ${numbers}` : '';
+                              checkCodeDuplication(fullCode);
+                            }}
+                            placeholder="001"
+                            required
+                          />
+                        </div>
+                        {lastCode && (
+                          <p className="text-xs text-muted-foreground">
+                            Último utilizado: <span className="font-mono font-medium">{lastCode}</span>
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>Slug (URL Amigável)</Label>
@@ -473,9 +754,9 @@ const AdminDashboard = () => {
           )}
 
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 };
 
-export default AdminDashboard;
+

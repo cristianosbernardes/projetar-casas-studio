@@ -1,34 +1,16 @@
-import { Home, MessageSquare, Plus, LogOut, LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, MessageSquare, PlusCircle, Trash2, Users, LogOut, Database } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface AdminSidebarProps {
-    currentView: 'properties' | 'leads' | 'create';
-    onViewChange: (view: 'properties' | 'leads' | 'create') => void;
+    currentView: 'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql';
+    onViewChange: (view: 'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql') => void;
     onLogout: () => void;
 }
 
 export function AdminSidebar({ currentView, onViewChange, onLogout }: AdminSidebarProps) {
-    const menuItems = [
-        {
-            id: 'properties',
-            label: 'Meus Projetos',
-            icon: Home,
-            view: 'properties' as const
-        },
-        {
-            id: 'leads',
-            label: 'Mensagens',
-            icon: MessageSquare,
-            view: 'leads' as const
-        },
-        {
-            id: 'create',
-            label: 'Novo Projeto',
-            icon: Plus,
-            view: 'create' as const
-        }
-    ];
+    const { canManageTeam, isEmployee, isMaster } = useUserRole();
 
     return (
         <div className="h-screen w-64 bg-card border-r border-border flex flex-col fixed left-0 top-0 z-50">
@@ -37,23 +19,87 @@ export function AdminSidebar({ currentView, onViewChange, onLogout }: AdminSideb
                     <LayoutDashboard className="h-6 w-6" />
                     <span>Admin Panel</span>
                 </div>
+                {!isEmployee && (
+                    <p className="text-xs text-muted-foreground mt-1">Gerenciamento Completo</p>
+                )}
             </div>
 
             <div className="flex-1 py-6 px-4 space-y-2">
-                {menuItems.map((item) => (
+                <Button
+                    variant={currentView === 'properties' ? "secondary" : "ghost"}
+                    className={cn(
+                        "w-full justify-start gap-3 text-base font-normal",
+                        currentView === 'properties' && "font-medium"
+                    )}
+                    onClick={() => onViewChange('properties')}
+                >
+                    <LayoutDashboard className="h-5 w-5" />
+                    Meus Projetos
+                </Button>
+
+                <Button
+                    variant={currentView === 'leads' ? "secondary" : "ghost"}
+                    className={cn(
+                        "w-full justify-start gap-3 text-base font-normal",
+                        currentView === 'leads' && "font-medium"
+                    )}
+                    onClick={() => onViewChange('leads')}
+                >
+                    <MessageSquare className="h-5 w-5" />
+                    Mensagens
+                </Button>
+
+                <Button
+                    variant={currentView === 'create' ? "secondary" : "ghost"}
+                    className={cn(
+                        "w-full justify-start gap-3 text-base font-normal",
+                        currentView === 'create' && "font-medium"
+                    )}
+                    onClick={() => onViewChange('create')}
+                >
+                    <PlusCircle className="h-5 w-5" />
+                    Novo Projeto
+                </Button>
+
+                <Button
+                    variant={currentView === 'trash' ? "secondary" : "ghost"}
+                    className={cn(
+                        "w-full justify-start gap-3 text-base font-normal",
+                        currentView === 'trash' && "font-medium"
+                    )}
+                    onClick={() => onViewChange('trash')}
+                >
+                    <Trash2 className="h-5 w-5" />
+                    Lixeira
+                </Button>
+
+                {canManageTeam && (
                     <Button
-                        key={item.id}
-                        variant={currentView === item.view ? "secondary" : "ghost"}
+                        variant={currentView === 'users' ? "secondary" : "ghost"}
                         className={cn(
                             "w-full justify-start gap-3 text-base font-normal",
-                            currentView === item.view && "font-medium"
+                            currentView === 'users' && "font-medium"
                         )}
-                        onClick={() => onViewChange(item.view)}
+                        onClick={() => onViewChange('users')}
                     >
-                        <item.icon className="h-5 w-5" />
-                        {item.label}
+                        <Users className="h-5 w-5" />
+                        Equipe
                     </Button>
-                ))}
+                )}
+
+                {isMaster && (
+                    <Button
+                        variant={currentView === 'sql' ? "secondary" : "ghost"}
+                        className={cn(
+                            "w-full justify-start gap-3 text-base font-normal text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50",
+                            currentView === 'sql' && "font-medium bg-indigo-50 text-indigo-700"
+                        )}
+                        onClick={() => onViewChange('sql')}
+                    >
+                        <Database className="h-5 w-5" />
+                        Banco SQL
+                    </Button>
+                )}
             </div>
 
             <div className="p-4 border-t border-border">

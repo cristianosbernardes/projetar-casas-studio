@@ -14,6 +14,7 @@ export interface Database {
           id: string
           title: string
           slug: string
+          code: string | null
           description: string | null
           price: number
           width_meters: number
@@ -26,6 +27,7 @@ export interface Database {
           style: string | null
           is_featured: boolean
           created_at: string
+          deleted_at: string | null
           price_electrical: number | null
           price_hydraulic: number | null
           price_sanitary: number | null
@@ -35,6 +37,7 @@ export interface Database {
           id?: string
           title: string
           slug: string
+          code?: string | null
           description?: string | null
           price: number
           width_meters: number
@@ -47,6 +50,7 @@ export interface Database {
           style?: string | null
           is_featured?: boolean
           created_at?: string
+          deleted_at?: string | null
           price_electrical?: number | null
           price_hydraulic?: number | null
           price_sanitary?: number | null
@@ -56,6 +60,7 @@ export interface Database {
           id?: string
           title?: string
           slug?: string
+          code?: string | null
           description?: string | null
           price?: number
           width_meters?: number
@@ -68,6 +73,7 @@ export interface Database {
           style?: string | null
           is_featured?: boolean
           created_at?: string
+          deleted_at?: string | null
           price_electrical?: number | null
           price_hydraulic?: number | null
           price_sanitary?: number | null
@@ -197,6 +203,32 @@ export interface Database {
           status?: string | null
         }
       }
+      profiles: {
+        Row: {
+          id: string
+          email: string
+          role: 'master' | 'partner' | 'employee'
+          full_name: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id: string
+          email: string
+          role?: 'master' | 'partner' | 'employee'
+          full_name?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          email?: string
+          role?: 'master' | 'partner' | 'employee'
+          full_name?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -219,6 +251,8 @@ export type Lead = Database['public']['Tables']['leads']['Row']
 export type LeadInsert = Database['public']['Tables']['leads']['Insert']
 export type ModificationRequest = Database['public']['Tables']['modification_requests']['Row']
 export type ModificationRequestInsert = Database['public']['Tables']['modification_requests']['Insert']
+export type Profile = Database['public']['Tables']['profiles']['Row']
+export type AppRole = Profile['role']
 
 // Helper type for project with images
 export type ProjectWithImages = Project & {
