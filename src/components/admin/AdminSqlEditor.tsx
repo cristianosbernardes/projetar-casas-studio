@@ -27,21 +27,27 @@ export const AdminSqlEditor = () => {
             if (error) throw error;
             return data;
         },
-        onSuccess: (data) => {
-            if (data && !Array.isArray(data) && data.error) {
+        onSuccess: (data: any) => {
+            if (data && typeof data === 'object' && !Array.isArray(data) && data.error) {
                 setError(data.error);
                 setResults([]);
+                toast({
+                    title: "Erro na Query",
+                    description: data.error,
+                    variant: "destructive"
+                });
             } else {
                 setError(null);
-                setResults(Array.isArray(data) ? data : []);
-                toast({ title: "Query executada com sucesso!" });
+                const resultsArray = Array.isArray(data) ? data : (data ? [data] : []);
+                setResults(resultsArray);
+                toast({ title: "Executado com sucesso!" });
             }
         },
         onError: (err: any) => {
             setError(err.message);
             setResults([]);
             toast({
-                title: "Erro na execução",
+                title: "Erro de Conexão/Permissão",
                 description: err.message,
                 variant: "destructive"
             });
@@ -55,16 +61,36 @@ export const AdminSqlEditor = () => {
 
     const presets = [
         {
-            name: "Listar Projetos",
-            sql: "SELECT id, title, created_at FROM projects ORDER BY created_at DESC LIMIT 10"
+            name: "📊 Listar Projetos Recentes",
+            sql: "SELECT id, title, price, width_meters, depth_meters, created_at FROM projects ORDER BY created_at DESC LIMIT 20"
         },
         {
-            name: "Contar Clientes",
-            sql: "SELECT count(*) as total_users FROM profiles"
+            name: "👥 Contar Usuários por Cargo",
+            sql: "SELECT role, count(*) as total FROM profiles GROUP BY role"
         },
         {
-            name: "Ver Logs Recentes",
-            sql: "SELECT * FROM modification_requests ORDER BY created_at DESC LIMIT 5"
+            name: "📩 Visualizar Últimos Leads",
+            sql: "SELECT name, email, phone, created_at, status FROM leads ORDER BY created_at DESC LIMIT 10"
+        },
+        {
+            name: "🛠️ Criar Coluna Views (Analytics)",
+            sql: "ALTER TABLE projects ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0;"
+        },
+        {
+            name: "⚙️ Ver Configurações do Sistema",
+            sql: "SELECT * FROM system_settings"
+        },
+        {
+            name: "🔍 Buscar Projeto por Slug",
+            sql: "SELECT * FROM projects WHERE slug = 'casa-contemporanea-com-piscina'"
+        },
+        {
+            name: "📈 Projetos Mais Vistos",
+            sql: "SELECT title, views FROM projects WHERE views > 0 ORDER BY views DESC"
+        },
+        {
+            name: "🧹 Limpar Cache de Projetos (Exemplo)",
+            sql: "-- Este é apenas um comentário de exemplo\nSELECT 'Sistema pronto para manutenção' as status"
         }
     ];
 

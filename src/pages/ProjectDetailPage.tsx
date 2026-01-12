@@ -4,7 +4,7 @@ import {
   Bed, Bath, Car, Maximize, Home, MapPin, ChevronLeft, ChevronRight,
   Download, Share2
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +42,16 @@ const ProjectDetailPage = () => {
       return data as ProjectWithImages | null;
     },
   });
+
+  // Track Views
+  useEffect(() => {
+    if (slug) {
+      // Fire and forget view increment
+      supabase.rpc('increment_project_view', { p_slug: slug }).then(({ error }) => {
+        if (error) console.error('Error tracking view:', error);
+      });
+    }
+  }, [slug]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {

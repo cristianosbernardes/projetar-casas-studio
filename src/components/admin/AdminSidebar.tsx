@@ -1,11 +1,22 @@
-import { LayoutDashboard, MessageSquare, PlusCircle, Trash2, Users, LogOut, Database } from 'lucide-react';
+import {
+    LayoutDashboard,
+    FolderKanban,
+    PlusCircle,
+    Trash2,
+    LogOut,
+    Users,
+    Users2,
+    Database,
+    Globe,
+    Settings
+} from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from '@/hooks/useUserRole';
 
 interface AdminSidebarProps {
-    currentView: 'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql';
-    onViewChange: (view: 'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql') => void;
+    currentView: 'overview' | 'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql' | 'settings';
+    onViewChange: (view: 'overview' | 'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql' | 'settings') => void;
     onLogout: () => void;
 }
 
@@ -26,6 +37,27 @@ export function AdminSidebar({ currentView, onViewChange, onLogout }: AdminSideb
 
             <div className="flex-1 py-6 px-4 space-y-2">
                 <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-3 text-base font-normal text-blue-600 hover:text-blue-700 hover:bg-blue-50 mb-4 border border-blue-100"
+                    onClick={() => window.open('/', '_blank')}
+                >
+                    <Globe className="h-5 w-5" />
+                    Ir para o Site
+                </Button>
+
+                <Button
+                    variant={currentView === 'overview' ? "secondary" : "ghost"}
+                    className={cn(
+                        "w-full justify-start gap-3 text-base font-normal",
+                        currentView === 'overview' && "font-medium"
+                    )}
+                    onClick={() => onViewChange('overview')}
+                >
+                    <LayoutDashboard className="h-5 w-5" />
+                    Visão Geral
+                </Button>
+
+                <Button
                     variant={currentView === 'properties' ? "secondary" : "ghost"}
                     className={cn(
                         "w-full justify-start gap-3 text-base font-normal",
@@ -33,7 +65,7 @@ export function AdminSidebar({ currentView, onViewChange, onLogout }: AdminSideb
                     )}
                     onClick={() => onViewChange('properties')}
                 >
-                    <LayoutDashboard className="h-5 w-5" />
+                    <FolderKanban className="h-5 w-5" />
                     Meus Projetos
                 </Button>
 
@@ -45,8 +77,8 @@ export function AdminSidebar({ currentView, onViewChange, onLogout }: AdminSideb
                     )}
                     onClick={() => onViewChange('leads')}
                 >
-                    <MessageSquare className="h-5 w-5" />
-                    Mensagens
+                    <Users className="h-5 w-5" />
+                    CRM de Vendas
                 </Button>
 
                 <Button
@@ -84,6 +116,20 @@ export function AdminSidebar({ currentView, onViewChange, onLogout }: AdminSideb
                     >
                         <Users className="h-5 w-5" />
                         Equipe
+                    </Button>
+                )}
+
+                {(isMaster || canManageTeam) && (
+                    <Button
+                        variant={currentView === 'settings' ? "secondary" : "ghost"}
+                        className={cn(
+                            "w-full justify-start gap-3 text-base font-normal",
+                            currentView === 'settings' && "font-medium"
+                        )}
+                        onClick={() => onViewChange('settings')}
+                    >
+                        <Settings className="h-5 w-5" />
+                        Configurações
                     </Button>
                 )}
 

@@ -32,6 +32,7 @@ export interface Database {
           price_hydraulic: number | null
           price_sanitary: number | null
           price_structural: number | null
+          views: number | null
         }
         Insert: {
           id?: string
@@ -55,6 +56,7 @@ export interface Database {
           price_hydraulic?: number | null
           price_sanitary?: number | null
           price_structural?: number | null
+          views?: number | null
         }
         Update: {
           id?: string
@@ -78,6 +80,7 @@ export interface Database {
           price_hydraulic?: number | null
           price_sanitary?: number | null
           price_structural?: number | null
+          views?: number | null
         }
       }
       project_images: {
@@ -115,6 +118,7 @@ export interface Database {
           selected_packages: string[] | null
           total_value: number | null
           created_at: string
+          status: string | null
         }
         Insert: {
           id?: string
@@ -127,6 +131,7 @@ export interface Database {
           selected_packages?: string[] | null
           total_value?: number | null
           created_at?: string
+          status?: string | null
         }
         Update: {
           id?: string
@@ -139,6 +144,7 @@ export interface Database {
           selected_packages?: string[] | null
           total_value?: number | null
           created_at?: string
+          status?: string | null
         }
       }
       modification_requests: {
@@ -234,7 +240,18 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_exec_sql: {
+        Args: {
+          query_text: string
+        }
+        Returns: Json
+      }
+      increment_project_view: {
+        Args: {
+          p_slug: string
+        }
+        Returns: void
+      }
     }
     Enums: {
       [_ in never]: never

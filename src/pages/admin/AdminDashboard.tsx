@@ -17,15 +17,16 @@ import { AdminSqlEditor } from '@/components/admin/AdminSqlEditor';
 import { AdminUsersList } from '@/components/admin/AdminUsersList';
 import { useUserRole } from '@/hooks/useUserRole';
 import type { Project, ProjectInsert, ProjectWithImages } from '@/types/database';
-
+import { AdminOverview } from '@/components/admin/AdminOverview';
+import { AdminCRM } from '@/components/admin/AdminCRM';
+import { AdminSettings } from '@/components/admin/AdminSettings';
 export default function AdminDashboard() {
-  // ... (existing code)
-
+  // ...
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // View State
-  const [currentView, setCurrentView] = useState<'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql'>('properties');
+  const [currentView, setCurrentView] = useState<'overview' | 'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql' | 'settings'>('overview');
   const { role, canDeleteProjects, canManageTeam, isEmployee, isMaster } = useUserRole();
 
   // Auth State
@@ -99,21 +100,24 @@ export default function AdminDashboard() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (!error) {
-      // Force refresh of role and projects
-      await queryClient.invalidateQueries({ queryKey: ['user-role'] });
-      await queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
-    }
-
-    setLoginLoading(false);
-
-    if (error) {
-      toast({ title: 'Erro ao fazer login', description: error.message, variant: 'destructive' });
-    } else {
-      setIsAuthenticated(true);
-      toast({ title: 'Login realizado!', description: 'Bem-vindo ao painel administrativo.' });
+      if (error) {
+        toast({ title: 'Erro ao fazer login', description: error.message, variant: 'destructive' });
+      } else {
+        // Force refresh of role and projects
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['user-role'] }),
+          queryClient.invalidateQueries({ queryKey: ['admin-projects'] })
+        ]);
+        setIsAuthenticated(true);
+        toast({ title: 'Login realizado!', description: 'Bem-vindo ao painel administrativo.' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro inesperado', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -157,10 +161,10 @@ export default function AdminDashboard() {
   // Soft Delete Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase
         .from('projects')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id);
+        .update({ deleted_at: new Date().toISOString() } as any)
+        .eq('id', id) as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -173,10 +177,10 @@ export default function AdminDashboard() {
   // Restore Mutation
   const restoreMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase
         .from('projects')
-        .update({ deleted_at: null })
-        .eq('id', id);
+        .update({ deleted_at: null } as any)
+        .eq('id', id) as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -327,6 +331,22 @@ export default function AdminDashboard() {
       <main className="ml-64 p-8">
         <div className="max-w-6xl mx-auto space-y-8">
 
+          {/* OVERVIEW VIEW */}
+          {currentView === 'overview' && (
+            <AdminOverview />
+          )}
+
+          {/* LEADS/CRM VIEW */}
+          {currentView === 'leads' && (
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-3xl font-bold">Mensagens</h1>
+                <p className="text-muted-foreground">Solicitações de orçamento e contato</p>
+              </div>
+              <AdminCRM />
+            </div>
+          )}
+
           {/* PROPERTIES LIST VIEW */}
           {currentView === 'properties' && (
             <div className="space-y-6">
@@ -427,16 +447,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* LEADS VIEW */}
-          {currentView === 'leads' && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="text-3xl font-bold">Mensagens</h1>
-                <p className="text-muted-foreground">Solicitações de orçamento e contato</p>
-              </div>
-              <AdminLeadsList />
-            </div>
-          )}
 
           {/* TRASH VIEW */}
           {currentView === 'trash' && (
@@ -534,6 +544,11 @@ export default function AdminDashboard() {
           {/* SQL VIEW */}
           {currentView === 'sql' && isMaster && (
             <AdminSqlEditor />
+          )}
+
+          {/* SETTINGS VIEW */}
+          {currentView === 'settings' && (
+            <AdminSettings />
           )}
 
           {/* CREATE / EDIT VIEW */}

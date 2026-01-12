@@ -1,12 +1,30 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Phone, Mail, Home } from 'lucide-react';
+import { Menu, X, Phone, Mail, Home, LogIn, MonitorCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useUserRole } from '@/hooks/useUserRole';
+import { supabase } from '@/integrations/supabase/client';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
   const location = useLocation();
+  const { role, isLoading } = useUserRole();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    // Check initial user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -85,6 +103,21 @@ const Header = () => {
 
           {/* CTA Button */}
           <div className="hidden md:flex items-center gap-4">
+            {user ? (
+              <Link to="/admin">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <MonitorCog className="h-4 w-4" />
+                  Painel Admin
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/auth">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <LogIn className="h-4 w-4" />
+                  Login
+                </Button>
+              </Link>
+            )}
             <Link to="/projetos">
               <Button size="sm">
                 Ver Projetos
@@ -119,6 +152,21 @@ const Header = () => {
                 </Link>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
+                {user ? (
+                  <Link to="/admin" onClick={() => setIsMenuOpen(false)}>
+                    <Button variant="outline" className="w-full gap-2">
+                      <MonitorCog className="h-4 w-4" />
+                      Painel Admin
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link to="/auth" onClick={() => setIsMenuOpen(false)}>
+                    <Button variant="ghost" className="w-full gap-2">
+                      <LogIn className="h-4 w-4" />
+                      Login
+                    </Button>
+                  </Link>
+                )}
                 <Link to="/projetos" onClick={() => setIsMenuOpen(false)}>
                   <Button className="w-full">
                     Ver Projetos
