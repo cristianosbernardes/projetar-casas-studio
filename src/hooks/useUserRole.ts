@@ -38,7 +38,7 @@ export const useUserRole = () => {
         canViewAll: true, // Todos no admin podem ver? Employee vê "sistema básico".
         canEditProjects: isMaster || isPartner,
         canDeleteProjects: isMaster || isPartner,
-        canManageTeam: isMaster, // Apenas master promove/exclui pessoas
+        canManageTeam: isMaster || isPartner, // Master e Sócio podem visualizar/convidar. Exclusão restrita a Master no componente.
         isMaster,
         isPartner,
         isEmployee,

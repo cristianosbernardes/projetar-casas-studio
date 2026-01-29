@@ -31,7 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Trash2, Shield, User, UserPlus } from 'lucide-react';
+import { Loader2, Trash2, Shield, User, UserPlus, Eye, EyeOff } from 'lucide-react';
 import type { Profile, AppRole } from '@/types/database';
 
 // Constants for temp client (to avoid logging out admin)
@@ -47,6 +47,7 @@ export const AdminUsersList = () => {
     // State for new user creation
     const [newUser, setNewUser] = useState({ email: '', password: '', fullName: '' });
     const [isCreating, setIsCreating] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     // Fetch users
     const { data: users, isLoading } = useQuery({
@@ -206,14 +207,30 @@ export const AdminUsersList = () => {
                             </div>
                             <div className="space-y-2">
                                 <Label>Senha</Label>
-                                <Input
-                                    type="password"
-                                    value={newUser.password}
-                                    onChange={e => setNewUser({ ...newUser, password: e.target.value })}
-                                    placeholder="******"
-                                    required
-                                    minLength={6}
-                                />
+                                <div className="relative">
+                                    <Input
+                                        type={showPassword ? "text" : "password"}
+                                        value={newUser.password}
+                                        onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                                        placeholder="******"
+                                        required
+                                        minLength={6}
+                                        className="pr-10"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                        ) : (
+                                            <Eye className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
 
                             <div className="bg-muted p-4 rounded-md text-sm text-muted-foreground">
