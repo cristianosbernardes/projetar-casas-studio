@@ -1,0 +1,13 @@
+
+ALTER TABLE leads 
+ADD COLUMN IF NOT EXISTS topography text,
+ADD COLUMN IF NOT EXISTS width text,
+ADD COLUMN IF NOT EXISTS depth text,
+ADD COLUMN IF NOT EXISTS phase text,
+ADD COLUMN IF NOT EXISTS timeline text,
+ADD COLUMN IF NOT EXISTS want_bbq boolean DEFAULT false,
+ADD COLUMN IF NOT EXISTS want_call boolean DEFAULT false,
+ADD COLUMN IF NOT EXISTS call_time text,
+ADD COLUMN IF NOT EXISTS source text,
+ADD COLUMN IF NOT EXISTS country text DEFAULT 'BR',
+ADD COLUMN IF NOT EXISTS country_ddi text;

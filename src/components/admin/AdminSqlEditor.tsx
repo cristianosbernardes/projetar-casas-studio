@@ -110,6 +110,44 @@ GRANT EXECUTE ON FUNCTION public.admin_exec_sql(TEXT) TO authenticated;
 COMMENT ON FUNCTION public.admin_exec_sql(TEXT) IS 'RPC para execução de SQL dinâmico restrito a usuários com cargo master.';`
         },
         {
+            name: "🏗️ Adicionar Colunas de Projeto",
+            sql: `-- Adicionar TODAS as colunas necessárias à tabela modification_requests
+
+-- Colunas de projeto
+ALTER TABLE modification_requests
+ADD COLUMN IF NOT EXISTS project_id TEXT;
+
+ALTER TABLE modification_requests
+ADD COLUMN IF NOT EXISTS project_code TEXT;
+
+-- Colunas de país e WhatsApp
+ALTER TABLE modification_requests
+ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'BR';
+
+ALTER TABLE modification_requests
+ADD COLUMN IF NOT EXISTS country_ddi TEXT DEFAULT '+55';
+
+ALTER TABLE modification_requests
+ADD COLUMN IF NOT EXISTS whatsapp_full TEXT;
+
+-- Criar índices para melhorar performance
+CREATE INDEX IF NOT EXISTS idx_modification_requests_project_id 
+ON modification_requests(project_id);
+
+CREATE INDEX IF NOT EXISTS idx_modification_requests_project_code 
+ON modification_requests(project_code);
+
+CREATE INDEX IF NOT EXISTS idx_modification_requests_country 
+ON modification_requests(country);
+
+-- Comentários nas colunas
+COMMENT ON COLUMN modification_requests.project_id IS 'ID único do projeto no sistema';
+COMMENT ON COLUMN modification_requests.project_code IS 'Código do projeto exibido ao usuário (ex: 3039)';
+COMMENT ON COLUMN modification_requests.country IS 'Código do país (ex: BR, PT, US)';
+COMMENT ON COLUMN modification_requests.country_ddi IS 'DDI do país (ex: +55, +351, +1)';
+COMMENT ON COLUMN modification_requests.whatsapp_full IS 'WhatsApp completo com DDI (ex: +5511999887766)';`
+        },
+        {
             name: "📊 Listar Projetos Recentes",
             sql: "SELECT id, title, price, width_meters, depth_meters, created_at FROM projects ORDER BY created_at DESC LIMIT 20"
         },
@@ -140,6 +178,61 @@ COMMENT ON FUNCTION public.admin_exec_sql(TEXT) IS 'RPC para execução de SQL d
         {
             name: "🧹 Limpar Cache de Projetos (Exemplo)",
             sql: "-- Este é apenas um comentário de exemplo\nSELECT 'Sistema pronto para manutenção' as status"
+        },
+        {
+            id: 'modifications-history',
+            name: '📜 Criar Tabela de Histórico',
+            description: 'Cria tabela para rastrear alterações de status das solicitações',
+            sql: `-- Create modification_history table
+CREATE TABLE IF NOT EXISTS modification_history (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    request_id UUID REFERENCES modification_requests(id) ON DELETE CASCADE,
+    previous_status TEXT,
+    new_status TEXT,
+    changed_by UUID REFERENCES auth.users(id),
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS
+ALTER TABLE modification_history ENABLE ROW LEVEL SECURITY;
+
+-- Create policies
+CREATE POLICY "Enable read access for authenticated users" ON modification_history
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Enable insert access for authenticated users" ON modification_history
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- Create index for faster lookups
+CREATE INDEX IF NOT EXISTS idx_modification_history_request_id ON modification_history(request_id);`
+        },
+        {
+            name: "➕ Adicionar Colunas em Leads",
+            description: "Adiciona country, topography, phase e outros campos na tabela leads",
+            sql: `ALTER TABLE leads 
+ADD COLUMN IF NOT EXISTS topography text,
+ADD COLUMN IF NOT EXISTS width text,
+ADD COLUMN IF NOT EXISTS depth text,
+ADD COLUMN IF NOT EXISTS phase text,
+ADD COLUMN IF NOT EXISTS timeline text,
+ADD COLUMN IF NOT EXISTS want_bbq boolean DEFAULT false,
+ADD COLUMN IF NOT EXISTS want_call boolean DEFAULT false,
+ADD COLUMN IF NOT EXISTS call_time text,
+ADD COLUMN IF NOT EXISTS source text,
+ADD COLUMN IF NOT EXISTS country text DEFAULT 'BR',
+ADD COLUMN IF NOT EXISTS country_ddi text;`
+        },
+        {
+            name: "📂 Adicionar Coluna de Anexos",
+            description: "Adiciona campo para link de arquivos na tabela leads",
+            sql: `-- Add attachment_url column to leads table
+alter table leads 
+add column if not exists attachment_url text;`
         }
     ];
 

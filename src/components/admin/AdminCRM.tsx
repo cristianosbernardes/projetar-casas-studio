@@ -10,7 +10,14 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, MoreVertical, Phone, Calendar, DollarSign, User, ArrowRight, Ban, CheckCircle2 } from 'lucide-react';
+import { Loader2, MoreVertical, Phone, Calendar, DollarSign, User, ArrowRight, Ban, CheckCircle2, MapPin, MessageSquare } from 'lucide-react';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +36,7 @@ const STATUS_COLUMNS: { id: LeadStatus; label: string; color: string }[] = [
 export function AdminCRM() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
+    const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
     const { data: leads, isLoading } = useQuery({
         queryKey: ['leads-crm'],
@@ -119,7 +127,11 @@ export function AdminCRM() {
                                         </div>
                                     ) : (
                                         columnLeads.map(lead => (
-                                            <Card key={lead.id} className="shadow-sm hover:shadow-md transition-all border-border/60 hover:border-primary/20 group relative bg-white">
+                                            <Card
+                                                key={lead.id}
+                                                className="shadow-sm hover:shadow-md transition-all border-border/60 hover:border-primary/20 group relative bg-white cursor-pointer"
+                                                onClick={() => setSelectedLead(lead)}
+                                            >
                                                 <CardContent className="p-4 space-y-3">
                                                     {/* Header Card */}
                                                     <div className="flex justify-between items-start">
@@ -132,7 +144,7 @@ export function AdminCRM() {
                                                         </div>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                                                                     <MoreVertical className="h-3 w-3" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
@@ -160,15 +172,17 @@ export function AdminCRM() {
 
                                                         {lead.phone && (
                                                             <div className="flex items-center gap-2">
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="h-7 text-xs w-full gap-2 text-muted-foreground hover:text-green-600 hover:border-green-200 hover:bg-green-50"
-                                                                    onClick={() => window.open(`https://wa.me/55${lead.phone?.replace(/\D/g, '')}`, '_blank')}
-                                                                >
-                                                                    <Phone className="h-3 w-3" />
-                                                                    WhatsApp
-                                                                </Button>
+                                                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="h-7 text-xs w-full gap-2 text-muted-foreground hover:text-green-600 hover:border-green-200 hover:bg-green-50"
+                                                                        onClick={() => window.open(`https://wa.me/55${lead.phone?.replace(/\D/g, '')}`, '_blank')}
+                                                                    >
+                                                                        <Phone className="h-3 w-3" />
+                                                                        WhatsApp
+                                                                    </Button>
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>
@@ -176,7 +190,7 @@ export function AdminCRM() {
 
                                                 {/* Status Specific Footer Actions */}
                                                 {column.id === 'new' && (
-                                                    <div className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-4 z-10">
+                                                    <div className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-4 z-10" onClick={(e) => e.stopPropagation()}>
                                                         <Button
                                                             size="icon"
                                                             className="h-8 w-8 rounded-full shadow-lg bg-yellow-500 hover:bg-yellow-600 text-white"
@@ -188,7 +202,7 @@ export function AdminCRM() {
                                                     </div>
                                                 )}
                                                 {column.id === 'in_progress' && (
-                                                    <div className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-4 z-10 flex flex-col gap-2">
+                                                    <div className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-4 z-10 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
                                                         <Button
                                                             size="icon"
                                                             className="h-8 w-8 rounded-full shadow-lg bg-green-500 hover:bg-green-600 text-white"
@@ -216,6 +230,126 @@ export function AdminCRM() {
                     })}
                 </div>
             </div>
-        </div>
+
+
+            <Dialog open={!!selectedLead} onOpenChange={(open) => !open && setSelectedLead(null)}>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Detalhes do Projeto: {selectedLead?.name}</DialogTitle>
+                        <DialogDescription>
+                            Solicitação enviada em {selectedLead?.created_at && format(new Date(selectedLead.created_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                        {/* Informações de Contato */}
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                                <User className="h-5 w-5 text-primary" />
+                                Contato
+                            </h3>
+                            <div className="space-y-2">
+                                <p className="text-sm"><span className="font-medium">Email:</span> {selectedLead?.email}</p>
+                                <p className="text-sm flex items-center gap-2">
+                                    <span className="font-medium">WhatsApp:</span>
+                                    {selectedLead?.phone ? (
+                                        <a
+                                            href={`https://wa.me/${selectedLead.phone.replace(/\D/g, '')}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-green-600 hover:underline flex items-center gap-1"
+                                        >
+                                            <Phone className="h-3 w-3" />
+                                            {selectedLead.phone}
+                                        </a>
+                                    ) : 'Não informado'}
+                                </p>
+                                <p className="text-sm">
+                                    <span className="font-medium">País:</span>{' '}
+                                    {selectedLead?.country === 'BR' || !selectedLead?.country
+                                        ? '🇧🇷 Brasil'
+                                        : <span className="flex items-center gap-1">🌍 Internacional ({selectedLead?.country})</span>}
+                                </p>
+                                <p className="text-sm"><span className="font-medium">Origem:</span> {selectedLead?.source || 'Orgânico'}</p>
+                            </div>
+                        </div>
+
+                        {/* Detalhes do Terreno e Projeto */}
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                                <MapPin className="h-5 w-5 text-primary" />
+                                Terreno & Projeto
+                            </h3>
+                            <div className="space-y-2">
+                                <p className="text-sm">
+                                    <span className="font-medium">Dimensões:</span>{' '}
+                                    {selectedLead?.width}m (frente) x {selectedLead?.depth}m (fundo)
+                                </p>
+                                <p className="text-sm">
+                                    <span className="font-medium">Topografia:</span>{' '}
+                                    {selectedLead?.topography === 'flat' && 'Plano'}
+                                    {selectedLead?.topography === 'uphill' && 'Aclive (sobe p/ fundo)'}
+                                    {selectedLead?.topography === 'downhill' && 'Declive (desce p/ fundo)'}
+                                    {!selectedLead?.topography && 'Não informada'}
+                                </p>
+                                <p className="text-sm">
+                                    <span className="font-medium">Churrasqueira:</span>{' '}
+                                    {selectedLead?.want_bbq ? '✅ Sim' : '❌ Não'}
+                                </p>
+                                <p className="text-sm">
+                                    <span className="font-medium">Fase:</span>{' '}
+                                    {selectedLead?.phase === 'idea' && 'Apenas Ideia'}
+                                    {selectedLead?.phase === 'planning' && 'Planejamento'}
+                                    {selectedLead?.phase === 'ready' && 'Pronto p/ construir'}
+                                    {!selectedLead?.phase && 'N/A'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Preferências de Atendimento */}
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                                <Calendar className="h-5 w-5 text-primary" />
+                                Preferências
+                            </h3>
+                            <div className="space-y-2">
+                                <p className="text-sm flex items-center gap-2">
+                                    <span className="font-medium">Aceita Ligação:</span>
+                                    {selectedLead?.want_call ? (
+                                        <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-200">Sim</Badge>
+                                    ) : (
+                                        <Badge variant="secondary">Não</Badge>
+                                    )}
+                                </p>
+                                {selectedLead?.want_call && (
+                                    <p className="text-sm">
+                                        <span className="font-medium">Melhor Horário:</span> {selectedLead?.call_time}
+                                    </p>
+                                )}
+                                <p className="text-sm">
+                                    <span className="font-medium">Prazo para Início:</span>{' '}
+                                    {selectedLead?.timeline === 'immediate' && 'Imediato'}
+                                    {selectedLead?.timeline === '30-days' && 'Até 30 dias'}
+                                    {selectedLead?.timeline === '3-months' && 'Até 3 meses'}
+                                    {selectedLead?.timeline === '6-months' && 'Mais de 6 meses'}
+                                    {!selectedLead?.timeline && 'Indefinido'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Mensagem / Descrição */}
+                        <div className="md:col-span-2 space-y-4">
+                            <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                                <MessageSquare className="h-5 w-5 text-primary" />
+                                Visão do Projeto
+                            </h3>
+                            <div className="bg-muted p-4 rounded-lg text-sm text-foreground/80 italic">
+                                "{selectedLead?.message || 'Nenhuma descrição fornecida.'}"
+                            </div>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </div >
     );
 }

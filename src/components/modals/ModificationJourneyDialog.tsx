@@ -220,21 +220,21 @@ export function ModificationJourneyDialog({
             const { error } = await supabase
                 .from('modification_requests')
                 .insert({
+                    project_id: projectId,
+                    project_code: projectCode,
                     project_title: projectTitle,
                     name: formData.name,
                     email: formData.email,
                     whatsapp: formData.whatsapp,
                     country: formData.country,
                     country_ddi: formData.countryDdi,
-                    whatsapp_full: `${formData.countryDdi}${formData.whatsapp}`,
+                    whatsapp_full: `${formData.countryDdi}${formData.whatsapp.replace(/\D/g, '')}`,
                     topography: formData.topography,
-                    // Storing compound width for now as "Frente / Fundo"
-                    // @ts-ignore
                     width: `Frente: ${formData.width}m / Fundo: ${formData.backWidth}m`,
-                    depth: formData.depth, // Comprimento
+                    depth: formData.depth,
                     description: formData.description,
                     phase: formData.phase,
-                    timeline: formData.timeline, // Will be empty/undefined now
+                    timeline: formData.timeline,
                     want_bbq: formData.wantBBQ,
                     want_call: formData.wantCall,
                     call_time: formData.callTime,
@@ -242,7 +242,10 @@ export function ModificationJourneyDialog({
                     status: 'new'
                 });
 
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase error:', error);
+                throw error;
+            }
 
             toast({
                 title: "Solicitação Recebida!",
@@ -257,8 +260,9 @@ export function ModificationJourneyDialog({
             console.error('Error submitting request:', error);
             toast({
                 title: "Erro no envio",
-                description: "Tente novamente ou chame no WhatsApp.",
+                description: error?.message || "Tente novamente ou chame no WhatsApp.",
                 variant: "destructive",
+                duration: 7000,
             });
             setIsSubmitting(false);
         }

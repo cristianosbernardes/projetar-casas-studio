@@ -119,6 +119,17 @@ export interface Database {
           total_value: number | null
           created_at: string
           status: string | null
+          topography: string | null
+          width: string | null
+          depth: string | null
+          phase: string | null
+          timeline: string | null
+          want_bbq: boolean | null
+          want_call: boolean | null
+          call_time: string | null
+          source: string | null
+          country: string | null
+          country_ddi: string | null
         }
         Insert: {
           id?: string
@@ -167,6 +178,9 @@ export interface Database {
           call_time: string | null
           source: string | null
           status: string | null
+          country: string | null
+          country_ddi: string | null
+          project_code: string | null
         }
         Insert: {
           id?: string
@@ -187,6 +201,9 @@ export interface Database {
           call_time?: string | null
           source?: string | null
           status?: string | null
+          country?: string | null
+          country_ddi?: string | null
+          project_code?: string | null
         }
         Update: {
           id?: string
@@ -207,6 +224,9 @@ export interface Database {
           call_time?: string | null
           source?: string | null
           status?: string | null
+          country?: string | null
+          country_ddi?: string | null
+          project_code?: string | null
         }
       }
       profiles: {
@@ -227,12 +247,36 @@ export interface Database {
           updated_at?: string | null
         }
         Update: {
-          id?: string
-          email?: string
-          role?: 'master' | 'partner' | 'employee'
-          full_name?: string | null
-          created_at?: string | null
           updated_at?: string | null
+        }
+      }
+      modification_history: {
+        Row: {
+          id: string
+          request_id: string
+          previous_status: string | null
+          new_status: string | null
+          changed_by: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          request_id: string
+          previous_status?: string | null
+          new_status?: string | null
+          changed_by?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          request_id?: string
+          previous_status?: string | null
+          new_status?: string | null
+          changed_by?: string | null
+          notes?: string | null
+          created_at?: string
         }
       }
     }
@@ -268,6 +312,7 @@ export type Lead = Database['public']['Tables']['leads']['Row']
 export type LeadInsert = Database['public']['Tables']['leads']['Insert']
 export type ModificationRequest = Database['public']['Tables']['modification_requests']['Row']
 export type ModificationRequestInsert = Database['public']['Tables']['modification_requests']['Insert']
+export type ModificationHistory = Database['public']['Tables']['modification_history']['Row']
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type AppRole = Profile['role']
 
