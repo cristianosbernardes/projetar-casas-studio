@@ -179,7 +179,7 @@ const ProjectDetailPage = () => {
               >
                 {currentImage ? (
                   <img
-                    src={currentImage.image_url}
+                    src={getOptimizedImageUrl(currentImage.image_url, { width: 1200, quality: 80 })}
                     alt={`${project.title} - Imagem ${currentImageIndex + 1}`}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
@@ -229,7 +229,7 @@ const ProjectDetailPage = () => {
                       }`}
                   >
                     <img
-                      src={image.image_url}
+                      src={getOptimizedImageUrl(image.image_url, { width: 200, quality: 70 })}
                       alt={`Thumbnail ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
@@ -398,7 +398,7 @@ const ProjectDetailPage = () => {
 
           <div className="w-full h-full flex items-center justify-center relative">
             <img
-              src={currentImage?.image_url}
+              src={getOptimizedImageUrl(currentImage?.image_url, { width: 1920, quality: 90 })}
               alt={project.title}
               className="max-w-full max-h-full object-contain pointer-events-none select-none"
             />

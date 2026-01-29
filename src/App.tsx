@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 const Index = lazy(() => import("./pages/Index"));
 const ProjectsPage = lazy(() => import("./pages/ProjectsPage"));
 const ProjectDetailPage = lazy(() => import("./pages/ProjectDetailPage"));
+const CustomProjectPage = lazy(() => import("./pages/CustomProjectPage")); // New Page
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/projetos" element={<ProjectsPage />} />
             <Route path="/projeto/:slug" element={<ProjectDetailPage />} />
+            <Route path="/projeto-personalizado" element={<CustomProjectPage />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/auth" element={<AdminDashboard />} />
             <Route path="*" element={<NotFound />} />

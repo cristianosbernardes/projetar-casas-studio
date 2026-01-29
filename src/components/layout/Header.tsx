@@ -42,6 +42,7 @@ const Header = () => {
   const navLinks = [
     { href: '/', label: 'Início' },
     { href: '/projetos', label: 'Projetos' },
+    { href: '/projeto-personalizado', label: 'Projeto Personalizado' },
     { href: '/como-funciona', label: 'Como Funciona' },
     { href: '/contato', label: 'Contato' },
   ];
