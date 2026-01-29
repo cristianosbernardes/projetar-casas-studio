@@ -4,7 +4,7 @@ import {
   Bed, Bath, Car, Maximize, Home, MapPin, ChevronLeft, ChevronRight,
   Download, Share2
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -118,14 +118,22 @@ const ProjectDetailPage = () => {
     );
   }
 
-  const images = project.project_images?.sort((a, b) => a.display_order - b.display_order) || [];
+  // Lightbox State
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  const images = React.useMemo(() => {
+    return project.project_images?.slice().sort((a, b) => a.display_order - b.display_order) || [];
+  }, [project.project_images]);
+
   const currentImage = images[currentImageIndex];
 
-  const nextImage = () => {
+  const nextImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
   };
 
-  const prevImage = () => {
+  const prevImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
@@ -153,19 +161,26 @@ const ProjectDetailPage = () => {
           <div className="lg:col-span-2 space-y-8">
 
             {/* Main Image Carousel */}
-            <div className="relative">
-              <div className="aspect-[16/9] rounded-2xl overflow-hidden bg-muted shadow-sm hover:shadow-md transition-shadow">
+            <div className="relative group">
+              <div
+                className="aspect-[16/9] rounded-2xl overflow-hidden bg-muted shadow-sm hover:shadow-md transition-shadow"
+              >
                 {currentImage ? (
                   <img
                     src={getOptimizedImageUrl(currentImage.image_url, { width: 1200, quality: 85 })}
                     alt={`${project.title} - Imagem ${currentImageIndex + 1}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                     <Home className="h-16 w-16" />
                   </div>
                 )}
+
+                {/* Hover Overlay with Zoom Icon */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <Maximize className="text-white h-12 w-12 drop-shadow-lg" />
+                </div>
               </div>
 
               {/* Navigation arrows */}
@@ -173,13 +188,13 @@ const ProjectDetailPage = () => {
                 <>
                   <button
                     onClick={prevImage}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-sm"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-sm z-10"
                   >
                     <ChevronLeft className="h-6 w-6" />
                   </button>
                   <button
                     onClick={nextImage}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-sm"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-sm z-10"
                   >
                     <ChevronRight className="h-6 w-6" />
                   </button>
@@ -188,7 +203,7 @@ const ProjectDetailPage = () => {
 
               {/* Image counter */}
               {images.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-background/80 backdrop-blur-sm text-sm font-medium">
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-background/80 backdrop-blur-sm text-sm font-medium z-10">
                   {currentImageIndex + 1} / {images.length}
                 </div>
               )}
@@ -213,6 +228,8 @@ const ProjectDetailPage = () => {
                 ))}
               </div>
             )}
+
+
 
             {/* Description Section */}
             <div className="space-y-4 pt-4 border-t border-gray-100">
