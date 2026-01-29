@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Upload, X, Loader2, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { supabase, getOptimizedImageUrl } from '@/integrations/supabase/client';
+import { convertToWebP } from '@/lib/image-optimizer';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
@@ -31,16 +32,26 @@ export function AdminImageGallery({ projectId }: AdminImageGalleryProps) {
         },
     });
 
+
+
+    // ... (dentro do componente)
+
     // Upload Mutation
     const uploadMutation = useMutation({
         mutationFn: async (file: File) => {
-            const fileExt = file.name.split('.').pop();
+            // Converter para WebP antes de qualquer coisa
+            const webpFile = await convertToWebP(file, 0.8);
+
+            const fileExt = 'webp';
             const fileName = `${projectId}/${crypto.randomUUID()}.${fileExt}`;
 
             // 1. Upload to Storage
             const { error: uploadError } = await supabase.storage
                 .from('project-images')
-                .upload(fileName, file);
+                .upload(fileName, webpFile, {
+                    contentType: 'image/webp',
+                    upsert: false
+                });
 
             if (uploadError) throw uploadError;
 

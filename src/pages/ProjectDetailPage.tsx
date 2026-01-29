@@ -2,12 +2,13 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bed, Bath, Car, Maximize, Home, MapPin, ChevronLeft, ChevronRight,
-  Download, Share2
+  Download, Share2, X
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import ProjectAddons from '@/components/checkout/ProjectAddons';
 import { ModificationJourneyDialog } from '@/components/modals/ModificationJourneyDialog';
 import { supabase, getOptimizedImageUrl } from '@/integrations/supabase/client';
@@ -24,7 +25,9 @@ const packageNames: Record<PackageType, string> = {
 
 const ProjectDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
+  // 1. All Hooks Declarations at the TOP
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', slug],
@@ -43,7 +46,7 @@ const ProjectDetailPage = () => {
     },
   });
 
-  // Track Views
+  // Track Views (Hook)
   useEffect(() => {
     if (slug) {
       // Fire and forget view increment
@@ -53,12 +56,38 @@ const ProjectDetailPage = () => {
     }
   }, [slug]);
 
+  // Ensure images is always an array and sorted safely (Hook + Memo)
+  const images = React.useMemo(() => {
+    // Correctly handle null project inside the hook logic, not before calling it
+    const imgs = project?.project_images;
+    if (!imgs || !Array.isArray(imgs)) return [];
+
+    return [...imgs].sort((a, b) => {
+      const orderA = typeof a.display_order === 'number' ? a.display_order : 0;
+      const orderB = typeof b.display_order === 'number' ? b.display_order : 0;
+      return orderA - orderB;
+    });
+  }, [project?.project_images]); // Depend on the optional chain
+
+  // 2. Helper Functions
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
       minimumFractionDigits: 0,
     }).format(price);
+  };
+
+  const currentImage = images[currentImageIndex];
+
+  const nextImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   const handleWhatsAppWithPackages = (selected: PackageType[], total: number) => {
@@ -80,6 +109,7 @@ const ProjectDetailPage = () => {
     }
   };
 
+  // 3. Conditional Returns (only allowed AFTER all hooks)
   if (isLoading) {
     return (
       <Layout>
@@ -118,26 +148,7 @@ const ProjectDetailPage = () => {
     );
   }
 
-  // Lightbox State
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-
-  const images = React.useMemo(() => {
-    return project.project_images?.slice().sort((a, b) => a.display_order - b.display_order) || [];
-  }, [project.project_images]);
-
-  const currentImage = images[currentImageIndex];
-
-  const nextImage = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
-  };
-
-  const prevImage = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-  };
-
-  // Check if complementary projects are available
+  // Helper var for JSX
   const hasComplementaryProjects =
     (project.price_electrical && project.price_electrical > 0) ||
     (project.price_hydraulic && project.price_hydraulic > 0) ||
@@ -163,11 +174,12 @@ const ProjectDetailPage = () => {
             {/* Main Image Carousel */}
             <div className="relative group">
               <div
-                className="aspect-[16/9] rounded-2xl overflow-hidden bg-muted shadow-sm hover:shadow-md transition-shadow"
+                className="aspect-[16/9] rounded-2xl overflow-hidden bg-muted shadow-sm hover:shadow-md transition-shadow cursor-pointer relative"
+                onClick={() => setIsLightboxOpen(true)}
               >
                 {currentImage ? (
                   <img
-                    src={getOptimizedImageUrl(currentImage.image_url, { width: 1200, quality: 85 })}
+                    src={currentImage.image_url}
                     alt={`${project.title} - Imagem ${currentImageIndex + 1}`}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
@@ -177,10 +189,7 @@ const ProjectDetailPage = () => {
                   </div>
                 )}
 
-                {/* Hover Overlay with Zoom Icon */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <Maximize className="text-white h-12 w-12 drop-shadow-lg" />
-                </div>
+                {/* REMOVED HOVER OVERLAY AS REQUESTED */}
               </div>
 
               {/* Navigation arrows */}
@@ -220,7 +229,7 @@ const ProjectDetailPage = () => {
                       }`}
                   >
                     <img
-                      src={getOptimizedImageUrl(image.image_url, { width: 160, quality: 70 })}
+                      src={image.image_url}
                       alt={`Thumbnail ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
@@ -376,6 +385,44 @@ const ProjectDetailPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Lightbox Dialog */}
+      <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
+        <DialogContent className="max-w-[95vw] h-[90vh] p-0 border-none bg-black/95 flex items-center justify-center">
+          <button
+            onClick={() => setIsLightboxOpen(false)}
+            className="absolute right-4 top-4 z-50 text-white/50 hover:text-white transition-colors p-2"
+          >
+            <X className="h-8 w-8" />
+          </button>
+
+          <div className="w-full h-full flex items-center justify-center relative">
+            <img
+              src={currentImage?.image_url}
+              alt={project.title}
+              className="max-w-full max-h-full object-contain pointer-events-none select-none"
+            />
+
+            {/* Lightbox Navigation */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); prevImage(); }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
+                >
+                  <ChevronLeft className="h-8 w-8" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); nextImage(); }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
+                >
+                  <ChevronRight className="h-8 w-8" />
+                </button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
