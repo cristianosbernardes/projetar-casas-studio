@@ -87,16 +87,22 @@ export function ModificationJourneyDialog({
     const [formData, setFormData] = useState<FormData>(INITIAL_DATA);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Initial Data with BBQ defaulted to false
     useEffect(() => {
         if (isOpen) {
             setStep(1);
+            setFormData({ ...INITIAL_DATA, wantBBQ: false });
         }
     }, [isOpen]);
 
     const updateField = (field: keyof FormData, value: any) => {
         if (field === 'whatsapp') {
-            // Only allow numbers
             const numbers = value.replace(/\D/g, '');
+            setFormData((prev) => ({ ...prev, [field]: numbers }));
+        }
+        // Force numbers only for dimensions
+        else if (field === 'width' || field === 'depth' || field === 'backWidth') {
+            const numbers = value.replace(/[^0-9.]/g, '');
             setFormData((prev) => ({ ...prev, [field]: numbers }));
         } else {
             setFormData((prev) => ({ ...prev, [field]: value }));
@@ -117,9 +123,12 @@ export function ModificationJourneyDialog({
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 return !!formData.name && emailRegex.test(formData.email) && formData.whatsapp.length >= 10;
             case 2:
-                return !!formData.width && !!formData.depth;
+                // Require Frente, Fundo, Comprimento
+                // @ts-ignore - backWidth dynamic
+                return !!formData.width && !!formData.depth && !!formData.backWidth;
             case 3:
-                return !!formData.description && formData.description.length > 5;
+                // Min 10 chars
+                return !!formData.description && formData.description.length >= 10;
             case 5:
                 return !!formData.source;
             default:
@@ -139,11 +148,13 @@ export function ModificationJourneyDialog({
                     email: formData.email,
                     whatsapp: formData.whatsapp,
                     topography: formData.topography,
-                    width: formData.width,
-                    depth: formData.depth,
+                    // Storing compound width for now as "Frente / Fundo"
+                    // @ts-ignore
+                    width: `Frente: ${formData.width}m / Fundo: ${formData.backWidth}m`,
+                    depth: formData.depth, // Comprimento
                     description: formData.description,
                     phase: formData.phase,
-                    timeline: formData.timeline,
+                    timeline: formData.timeline, // Will be empty/undefined now
                     want_bbq: formData.wantBBQ,
                     want_call: formData.wantCall,
                     call_time: formData.callTime,
@@ -234,7 +245,7 @@ export function ModificationJourneyDialog({
                             <p className="text-sm text-gray-500">Detalhes do seu lote.</p>
                         </div>
 
-                        {/* Topography: Explicitly ensuring horizontal alignment and clean look */}
+                        {/* Topography */}
                         <div className="grid grid-cols-3 gap-3">
                             {[
                                 { id: "flat", label: "Plano", icon: AlignLeft, rotate: 90 },
@@ -265,28 +276,41 @@ export function ModificationJourneyDialog({
                             ))}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-6 pt-2">
-                            <div className="relative group">
-                                <Label className="absolute -top-2 left-3 bg-white px-1 text-xs text-green-700 font-medium z-10">Frente (m)</Label>
+                        {/* Dimensions - 3 Fields */}
+                        <div className="grid grid-cols-3 gap-3 pt-2">
+                            <div className="relative group col-span-1">
+                                <Label className="absolute -top-2 left-3 bg-white px-1 text-xs text-green-700 font-medium z-10 w-max">Frente (m)</Label>
                                 <Input
-                                    type="number"
+                                    type="text"
+                                    inputMode="decimal"
                                     value={formData.width}
                                     onChange={(e) => updateField("width", e.target.value)}
                                     className="h-12 pt-2 border-gray-200 focus:border-green-500 bg-gray-50/30"
                                     placeholder="0.00"
                                 />
-                                <Ruler className="absolute right-3 top-3.5 h-5 w-5 text-gray-300" />
                             </div>
-                            <div className="relative group">
-                                <Label className="absolute -top-2 left-3 bg-white px-1 text-xs text-green-700 font-medium z-10">Fundo (m)</Label>
+                            <div className="relative group col-span-1">
+                                <Label className="absolute -top-2 left-3 bg-white px-1 text-xs text-green-700 font-medium z-10 w-max">Fundo (m)</Label>
                                 <Input
-                                    type="number"
+                                    type="text"
+                                    inputMode="decimal"
+                                    // @ts-ignore
+                                    value={formData.backWidth || ''}
+                                    onChange={(e) => updateField("backWidth" as any, e.target.value)}
+                                    className="h-12 pt-2 border-gray-200 focus:border-green-500 bg-gray-50/30"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div className="relative group col-span-1">
+                                <Label className="absolute -top-2 left-3 bg-white px-1 text-xs text-green-700 font-medium z-10 w-max">Comp. (m)</Label>
+                                <Input
+                                    type="text"
+                                    inputMode="decimal"
                                     value={formData.depth}
                                     onChange={(e) => updateField("depth", e.target.value)}
                                     className="h-12 pt-2 border-gray-200 focus:border-green-500 bg-gray-50/30"
                                     placeholder="0.00"
                                 />
-                                <Ruler className="absolute right-3 top-3.5 h-5 w-5 text-gray-300 rotate-90" />
                             </div>
                         </div>
                     </div>
@@ -297,38 +321,20 @@ export function ModificationJourneyDialog({
                     <div className={cn("space-y-6 pt-4", fadeIn)}>
                         <div className="text-center space-y-1">
                             <h3 className="text-xl font-bold text-gray-900">Sua Visão</h3>
-                            <p className="text-sm text-gray-500">O que você quer mudar?</p>
+                            <p className="text-sm text-gray-500">Diga em poucas palavras o que deseja alterar.</p>
                         </div>
 
                         <div className="relative">
                             <Textarea
                                 value={formData.description}
                                 onChange={(e) => updateField("description", e.target.value)}
-                                placeholder="Descreva suas alterações..."
-                                className="min-h-[150px] resize-none p-4 text-base bg-gray-50 border-gray-200 focus:bg-white focus:border-green-500 transition-colors"
+                                placeholder="Gostaria de mudar a fachada e aumentar a sala..."
+                                className="min-h-[200px] resize-none p-4 text-base bg-gray-50 border-gray-200 focus:bg-white focus:border-green-500 transition-colors"
                             />
-                            <div className="absolute bottom-3 right-3">
-                                <Sparkles className="h-5 w-5 text-yellow-400" />
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <Label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Quando pretende começar?</Label>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                {["30-days", "3-months", "undefined"].map((t) => (
-                                    <div
-                                        key={t}
-                                        onClick={() => updateField("timeline", t)}
-                                        className={cn(
-                                            "cursor-pointer rounded-lg border p-3 text-center text-xs transition-all",
-                                            formData.timeline === t
-                                                ? "bg-green-600 text-white border-green-600 shadow-md"
-                                                : "bg-white text-gray-500 border-gray-200 hover:border-green-400"
-                                        )}
-                                    >
-                                        {t === "30-days" ? "Urgente (30d)" : t === "3-months" ? "Médio (90d)" : "Sem Pressa"}
-                                    </div>
-                                ))}
+                            <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+                                {formData.description.length < 10 && (
+                                    <span>Mínimo 10 caracteres</span>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -435,14 +441,14 @@ export function ModificationJourneyDialog({
             case 5:
                 return (
                     <div className={cn("py-8 text-center space-y-6 pt-8", fadeIn)}>
-                        <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
-                            <Check className="h-10 w-10 text-green-700" />
+                        <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm animate-pulse">
+                            <ArrowRight className="h-10 w-10 text-blue-700" />
                         </div>
 
                         <div className="space-y-2">
-                            <h3 className="text-2xl font-bold text-gray-900">Tudo Pronto!</h3>
+                            <h3 className="text-2xl font-bold text-gray-900">Quase lá!</h3>
                             <p className="text-gray-500 text-sm max-w-sm mx-auto">
-                                Dados preenchidos. Envie para nossa equipe analisar o projeto <strong>{projectTitle}</strong>.
+                                Para finalizar, nos diga onde nos conheceu e clique em <strong>Enviar Solicitação</strong> abaixo.
                             </p>
                         </div>
 

@@ -15,8 +15,8 @@ import { Button } from "@/components/ui/button";
 import { useUserRole } from '@/hooks/useUserRole';
 
 interface AdminSidebarProps {
-    currentView: 'overview' | 'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql' | 'settings';
-    onViewChange: (view: 'overview' | 'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql' | 'settings') => void;
+    currentView: 'overview' | 'properties' | 'leads' | 'modifications' | 'create' | 'trash' | 'users' | 'sql' | 'settings';
+    onViewChange: (view: 'overview' | 'properties' | 'leads' | 'modifications' | 'create' | 'trash' | 'users' | 'sql' | 'settings') => void;
     onLogout: () => void;
 }
 
@@ -132,6 +132,19 @@ export function AdminSidebar({ currentView, onViewChange, onLogout }: AdminSideb
                         Configurações
                     </Button>
                 )}
+
+                {/* New Modifications Module */}
+                <Button
+                    variant={currentView === 'modifications' ? "secondary" : "ghost"}
+                    className={cn(
+                        "w-full justify-start gap-3 text-base font-normal",
+                        currentView === 'modifications' && "font-medium"
+                    )}
+                    onClick={() => onViewChange('modifications')}
+                >
+                    <Settings className="h-5 w-5 rotate-90" /> {/* Using rotated settings as a temporary icon or maybe Edit3/PenTool */}
+                    Solicitações
+                </Button>
 
                 {isMaster && (
                     <Button

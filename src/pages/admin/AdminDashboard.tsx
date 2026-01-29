@@ -19,6 +19,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import type { Project, ProjectInsert, ProjectWithImages } from '@/types/database';
 import { AdminOverview } from '@/components/admin/AdminOverview';
 import { AdminCRM } from '@/components/admin/AdminCRM';
+import { AdminModificationsList } from '@/components/admin/AdminModificationsList';
 import { AdminSettings } from '@/components/admin/AdminSettings';
 export default function AdminDashboard() {
   // ...
@@ -26,7 +27,7 @@ export default function AdminDashboard() {
   const queryClient = useQueryClient();
 
   // View State
-  const [currentView, setCurrentView] = useState<'overview' | 'properties' | 'leads' | 'create' | 'trash' | 'users' | 'sql' | 'settings'>('overview');
+  const [currentView, setCurrentView] = useState<'overview' | 'properties' | 'leads' | 'modifications' | 'create' | 'trash' | 'users' | 'sql' | 'settings'>('overview');
   const { role, canDeleteProjects, canManageTeam, isEmployee, isMaster } = useUserRole();
 
   // Auth State
@@ -344,6 +345,17 @@ export default function AdminDashboard() {
                 <p className="text-muted-foreground">Solicitações de orçamento e contato</p>
               </div>
               <AdminCRM />
+            </div>
+          )}
+
+          {/* MODIFICATIONS VIEW */}
+          {currentView === 'modifications' && (
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-3xl font-bold">Solicitações de Modificação</h1>
+                <p className="text-muted-foreground">Pedidos de personalização de projetos</p>
+              </div>
+              <AdminModificationsList />
             </div>
           )}
 

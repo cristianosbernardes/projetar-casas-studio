@@ -13,11 +13,15 @@ import type { ProjectWithImages } from '@/types/database';
 const ProjectsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // Filter states from URL
   const [width, setWidth] = useState(searchParams.get('width') || '');
   const [depth, setDepth] = useState(searchParams.get('depth') || '');
+  const [code, setCode] = useState(searchParams.get('code') || '');
   const [bedrooms, setBedrooms] = useState(searchParams.get('bedrooms') || '');
+  const [bathrooms, setBathrooms] = useState(searchParams.get('bathrooms') || '');
+  const [suites, setSuites] = useState(searchParams.get('suites') || '');
+  const [garage, setGarage] = useState(searchParams.get('garage') || '');
   const [style, setStyle] = useState(searchParams.get('style') || '');
 
   const { data: projects, isLoading } = useQuery({
@@ -30,7 +34,7 @@ const ProjectsPage = () => {
           project_images (*)
         `)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       return data as ProjectWithImages[];
     },
@@ -39,7 +43,7 @@ const ProjectsPage = () => {
   // Filter projects based on search params
   const filteredProjects = useMemo(() => {
     if (!projects) return [];
-    
+
     return projects.filter(project => {
       // Width filter - project fits if its width is <= terrain width
       if (width && project.width_meters > parseFloat(width)) {
@@ -49,8 +53,30 @@ const ProjectsPage = () => {
       if (depth && project.depth_meters > parseFloat(depth)) {
         return false;
       }
-      // Bedrooms filter
+      // Code filter (Project ID or Title/Slug match)
+      if (code) {
+        const searchCode = code.toLowerCase();
+        const titleMatch = project.title.toLowerCase().includes(searchCode);
+        const slugMatch = project.slug.toLowerCase().includes(searchCode);
+        // Check if ID matches or if it's contained in the title part like "Cód. 101"
+        if (!titleMatch && !slugMatch && project.id !== code) {
+          return false;
+        }
+      }
+      // Bedrooms filter (exact match)
       if (bedrooms && project.bedrooms !== parseInt(bedrooms)) {
+        return false;
+      }
+      // Bathrooms filter (minimum match)
+      if (bathrooms && project.bathrooms < parseInt(bathrooms)) {
+        return false;
+      }
+      // Suites filter (minimum match)
+      if (suites && project.suites < parseInt(suites)) {
+        return false;
+      }
+      // Garage filter (minimum match)
+      if (garage && project.garage_spots < parseInt(garage)) {
         return false;
       }
       // Style filter
@@ -58,14 +84,19 @@ const ProjectsPage = () => {
         return false;
       }
       return true;
+      return true;
     });
-  }, [projects, width, depth, bedrooms, style]);
+  }, [projects, width, depth, code, bedrooms, bathrooms, suites, garage, style]);
 
   const handleApplyFilters = () => {
     const params = new URLSearchParams();
     if (width) params.set('width', width);
     if (depth) params.set('depth', depth);
+    if (code) params.set('code', code);
     if (bedrooms) params.set('bedrooms', bedrooms);
+    if (bathrooms) params.set('bathrooms', bathrooms);
+    if (suites) params.set('suites', suites);
+    if (garage) params.set('garage', garage);
     if (style) params.set('style', style);
     setSearchParams(params);
     setShowFilters(false);
@@ -74,19 +105,24 @@ const ProjectsPage = () => {
   const handleClearFilters = () => {
     setWidth('');
     setDepth('');
+    setCode('');
     setBedrooms('');
+    setBathrooms('');
+    setSuites('');
+    setGarage('');
     setStyle('');
     setSearchParams(new URLSearchParams());
   };
 
-  const hasActiveFilters = width || depth || bedrooms || style;
+  const hasActiveFilters = width || depth || code || bedrooms || bathrooms || suites || garage || style;
 
-  // Mock data for display when database is empty
+  // Mock data for display when displayProjects is empty
   const mockProjects: ProjectWithImages[] = [
     {
       id: '1',
       title: 'Casa Térrea Moderna com 3 Quartos - Cód. 101',
       slug: 'casa-terrea-moderna-3-quartos-101',
+      code: '101',
       description: 'Projeto moderno com ampla área social',
       price: 650,
       width_meters: 10,
@@ -99,6 +135,8 @@ const ProjectsPage = () => {
       style: 'Moderno',
       is_featured: true,
       created_at: new Date().toISOString(),
+      deleted_at: null,
+      views: 0,
       price_electrical: 180,
       price_hydraulic: 150,
       price_sanitary: 120,
@@ -109,6 +147,7 @@ const ProjectsPage = () => {
       id: '2',
       title: 'Sobrado Contemporâneo - Cód. 102',
       slug: 'sobrado-contemporaneo-102',
+      code: '102',
       description: 'Sobrado elegante',
       price: 890,
       width_meters: 12,
@@ -121,6 +160,8 @@ const ProjectsPage = () => {
       style: 'Contemporâneo',
       is_featured: true,
       created_at: new Date().toISOString(),
+      deleted_at: null,
+      views: 0,
       price_electrical: 220,
       price_hydraulic: 180,
       price_sanitary: 150,
@@ -131,6 +172,7 @@ const ProjectsPage = () => {
       id: '3',
       title: 'Casa Compacta - Cód. 103',
       slug: 'casa-compacta-103',
+      code: '103',
       description: 'Ideal para terrenos estreitos',
       price: 320,
       width_meters: 5,
@@ -143,6 +185,8 @@ const ProjectsPage = () => {
       style: 'Moderno',
       is_featured: false,
       created_at: new Date().toISOString(),
+      deleted_at: null,
+      views: 0,
       price_electrical: 100,
       price_hydraulic: 80,
       price_sanitary: 70,
@@ -153,6 +197,7 @@ const ProjectsPage = () => {
       id: '4',
       title: 'Casa Térrea Rústica - Cód. 104',
       slug: 'casa-terrea-rustica-104',
+      code: '104',
       description: 'Estilo rústico aconchegante',
       price: 580,
       width_meters: 8,
@@ -165,6 +210,8 @@ const ProjectsPage = () => {
       style: 'Rústico',
       is_featured: false,
       created_at: new Date().toISOString(),
+      deleted_at: null,
+      views: 0,
       price_electrical: 160,
       price_hydraulic: 130,
       price_sanitary: 100,
@@ -175,6 +222,7 @@ const ProjectsPage = () => {
       id: '5',
       title: 'Sobrado com Mezanino - Cód. 105',
       slug: 'sobrado-mezanino-105',
+      code: '105',
       description: 'Design moderno com mezanino',
       price: 750,
       width_meters: 10,
@@ -187,6 +235,8 @@ const ProjectsPage = () => {
       style: 'Moderno',
       is_featured: true,
       created_at: new Date().toISOString(),
+      deleted_at: null,
+      views: 0,
       price_electrical: 200,
       price_hydraulic: 160,
       price_sanitary: 130,
@@ -197,6 +247,7 @@ const ProjectsPage = () => {
       id: '6',
       title: 'Casa com Varanda Gourmet - Cód. 106',
       slug: 'casa-varanda-gourmet-106',
+      code: '106',
       description: 'Perfeita para receber amigos',
       price: 720,
       width_meters: 12,
@@ -209,6 +260,8 @@ const ProjectsPage = () => {
       style: 'Contemporâneo',
       is_featured: false,
       created_at: new Date().toISOString(),
+      deleted_at: null,
+      views: 0,
       price_electrical: 190,
       price_hydraulic: 155,
       price_sanitary: 125,
@@ -228,7 +281,7 @@ const ProjectsPage = () => {
             Projetos de Casas
           </h1>
           <p className="text-primary-foreground/80 text-lg max-w-2xl">
-            Encontre o projeto ideal para o seu terreno. Use os filtros para buscar 
+            Encontre o projeto ideal para o seu terreno. Use os filtros para buscar
             por dimensões, número de quartos e estilo.
           </p>
         </div>
