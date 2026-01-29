@@ -34,13 +34,18 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { COUNTRIES, formatPhoneNumber, type Country } from "@/lib/countries";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
+
+
 interface ModificationJourneyDialogProps {
     projectTitle: string;
+    projectId?: string;
+    projectCode?: string;
 }
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -49,6 +54,8 @@ interface FormData {
     name: string;
     email: string;
     whatsapp: string;
+    country: string;
+    countryDdi: string;
     topography: "flat" | "uphill" | "downhill";
     position: "mid-block" | "corner";
     width: string;
@@ -66,6 +73,8 @@ const INITIAL_DATA: FormData = {
     name: "",
     email: "",
     whatsapp: "",
+    country: "BR",
+    countryDdi: "+55",
     topography: "flat",
     position: "mid-block",
     width: "",
@@ -80,12 +89,80 @@ const INITIAL_DATA: FormData = {
 
 export function ModificationJourneyDialog({
     projectTitle,
+    projectId,
+    projectCode,
 }: ModificationJourneyDialogProps) {
     const { toast } = useToast();
     const [isOpen, setIsOpen] = useState(false);
     const [step, setStep] = useState<Step>(1);
     const [formData, setFormData] = useState<FormData>(INITIAL_DATA);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Detectar país automaticamente baseado no idioma do navegador
+    useEffect(() => {
+        if (isOpen && formData.country === 'BR') { // Só detecta se ainda estiver no padrão Brasil
+            const detectCountry = () => {
+                // Pega o idioma do navegador (ex: 'pt-BR', 'en-US', 'es-ES')
+                const browserLang = navigator.language || navigator.languages?.[0] || 'pt-BR';
+
+                // Mapeamento de idiomas para códigos de país
+                const langToCountry: { [key: string]: string } = {
+                    'pt-BR': 'BR',
+                    'pt-PT': 'PT',
+                    'pt-AO': 'AO',
+                    'pt-MZ': 'MZ',
+                    'en-US': 'US',
+                    'en-GB': 'GB',
+                    'en-CA': 'CA',
+                    'en-AU': 'AU',
+                    'es-ES': 'ES',
+                    'es-AR': 'AR',
+                    'es-MX': 'MX',
+                    'fr-FR': 'FR',
+                    'fr-CA': 'CA',
+                    'de-DE': 'DE',
+                    'it-IT': 'IT',
+                    'ja-JP': 'JP',
+                    'zh-CN': 'CN',
+                    'ko-KR': 'KR',
+                };
+
+                // Tenta match exato primeiro
+                let countryCode = langToCountry[browserLang];
+
+                // Se não encontrar, tenta só o prefixo do idioma
+                if (!countryCode) {
+                    const langPrefix = browserLang.split('-')[0];
+                    const prefixMap: { [key: string]: string } = {
+                        'pt': 'PT',
+                        'en': 'US',
+                        'es': 'ES',
+                        'fr': 'FR',
+                        'de': 'DE',
+                        'it': 'IT',
+                        'ja': 'JP',
+                        'zh': 'CN',
+                        'ko': 'KR',
+                    };
+                    countryCode = prefixMap[langPrefix];
+                }
+
+                // Se encontrou um país válido, atualiza
+                if (countryCode) {
+                    const country = COUNTRIES.find(c => c.code === countryCode);
+                    if (country) {
+                        setFormData(prev => ({
+                            ...prev,
+                            country: country.code,
+                            countryDdi: country.ddi
+                        }));
+                    }
+                }
+            };
+
+            detectCountry();
+        }
+    }, [isOpen]);
 
     // Initial Data with BBQ defaulted to false
     useEffect(() => {
@@ -147,6 +224,9 @@ export function ModificationJourneyDialog({
                     name: formData.name,
                     email: formData.email,
                     whatsapp: formData.whatsapp,
+                    country: formData.country,
+                    country_ddi: formData.countryDdi,
+                    whatsapp_full: `${formData.countryDdi}${formData.whatsapp}`,
                     topography: formData.topography,
                     // Storing compound width for now as "Frente / Fundo"
                     // @ts-ignore
@@ -189,47 +269,86 @@ export function ModificationJourneyDialog({
 
         switch (step) {
             case 1:
+                const selectedCountry = COUNTRIES.find(c => c.code === formData.country) || COUNTRIES[0];
+
                 return (
-                    <div className={cn("space-y-6 pt-4", fadeIn)}>
-                        <div className="text-center space-y-1">
-                            <h3 className="text-2xl font-bold text-gray-900">Vamos começar</h3>
-                            <p className="text-sm text-gray-500">Para personalizar, precisamos te conhecer.</p>
+                    <div className={cn("space-y-4 pt-2", fadeIn)}>
+                        <div className="text-center space-y-0.5">
+                            <h3 className="text-xl font-bold text-gray-900">Vamos começar</h3>
+                            <p className="text-xs text-gray-500">Para personalizar, precisamos te conhecer.</p>
                         </div>
-                        <div className="space-y-4">
-                            <div className="space-y-1.5">
-                                <Label className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Nome Completo</Label>
+                        <div className="space-y-3">
+                            <div className="space-y-1">
+                                <Label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Nome Completo</Label>
                                 <Input
                                     value={formData.name}
                                     onChange={(e) => updateField("name", e.target.value)}
                                     placeholder="Seu nome"
-                                    className="h-12 text-lg border-gray-200 focus:border-green-500 focus:ring-green-500/20 bg-gray-50/50"
+                                    className="h-10 text-sm border-gray-200 focus:border-green-500 focus:ring-green-500/20 bg-gray-50/50"
                                 />
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Contato / WhatsApp</Label>
-                                    <Input
-                                        value={formData.whatsapp}
-                                        onChange={(e) => updateField("whatsapp", e.target.value)}
-                                        placeholder="Apenas números (DDD + Tel)"
-                                        inputMode="numeric"
-                                        className="border-gray-200 focus:border-green-500 focus:ring-green-500/20 bg-gray-50/50"
-                                    />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Contato / WhatsApp</Label>
+                                    <div className="flex gap-2">
+                                        {/* Country Selector as Prefix */}
+                                        <Select
+                                            value={formData.country}
+                                            onValueChange={(val) => {
+                                                const country = COUNTRIES.find(c => c.code === val);
+                                                if (country) {
+                                                    updateField("country", country.code);
+                                                    updateField("countryDdi", country.ddi);
+                                                }
+                                            }}
+                                        >
+                                            <SelectTrigger className="w-[90px] h-10 border-gray-200 bg-gray-50 text-xs">
+                                                <SelectValue>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-base">{selectedCountry.flag}</span>
+                                                        <span className="text-xs font-medium">{selectedCountry.ddi}</span>
+                                                    </div>
+                                                </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {COUNTRIES.map((country) => (
+                                                    <SelectItem key={country.code} value={country.code}>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-base">{country.flag}</span>
+                                                            <span className="text-sm">{country.name}</span>
+                                                            <span className="text-gray-400 text-xs ml-auto">({country.ddi})</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Input
+                                            value={formData.whatsapp}
+                                            onChange={(e) => {
+                                                const formatted = formatPhoneNumber(e.target.value, formData.country);
+                                                updateField("whatsapp", formatted);
+                                            }}
+                                            placeholder={selectedCountry.placeholder}
+                                            inputMode="numeric"
+                                            className="flex-1 h-10 text-sm border-gray-200 focus:border-green-500 focus:ring-green-500/20 bg-gray-50/50"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs uppercase tracking-wider text-gray-500 font-semibold">E-mail</Label>
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">E-mail</Label>
                                     <Input
                                         type="email"
                                         value={formData.email}
                                         onChange={(e) => updateField("email", e.target.value)}
                                         placeholder="seu@email.com"
                                         className={cn(
-                                            "border-gray-200 focus:border-green-500 focus:ring-green-500/20 bg-gray-50/50",
+                                            "h-10 text-sm border-gray-200 focus:border-green-500 focus:ring-green-500/20 bg-gray-50/50",
                                             formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) && "border-red-300 focus:border-red-500 focus:ring-red-200"
                                         )}
                                     />
                                     {formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) && (
-                                        <p className="text-xs text-red-500 mt-1">Digite um e-mail válido</p>
+                                        <p className="text-[10px] text-red-500 mt-0.5">Digite um e-mail válido</p>
                                     )}
                                 </div>
                             </div>
@@ -440,20 +559,20 @@ export function ModificationJourneyDialog({
 
             case 5:
                 return (
-                    <div className={cn("py-8 text-center space-y-6 pt-8", fadeIn)}>
-                        <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm animate-pulse">
-                            <ArrowRight className="h-10 w-10 text-blue-700" />
+                    <div className={cn("py-4 text-center space-y-4", fadeIn)}>
+                        <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm animate-pulse">
+                            <ArrowRight className="h-8 w-8 text-blue-700" />
                         </div>
 
-                        <div className="space-y-2">
-                            <h3 className="text-2xl font-bold text-gray-900">Quase lá!</h3>
-                            <p className="text-gray-500 text-sm max-w-sm mx-auto">
+                        <div className="space-y-1">
+                            <h3 className="text-xl font-bold text-gray-900">Quase lá!</h3>
+                            <p className="text-gray-500 text-xs max-w-sm mx-auto">
                                 Para finalizar, nos diga onde nos conheceu e clique em <strong>Enviar Solicitação</strong> abaixo.
                             </p>
                         </div>
 
-                        <div className="pt-6 max-w-sm mx-auto w-full text-left">
-                            <Label className="text-xs text-gray-500 mb-3 block text-center uppercase tracking-wider font-semibold">Onde nos conheceu?</Label>
+                        <div className="pt-3 max-w-sm mx-auto w-full text-left">
+                            <Label className="text-[10px] text-gray-500 mb-2 block text-center uppercase tracking-wider font-semibold">Onde nos conheceu?</Label>
 
                             <div className="grid grid-cols-3 gap-3">
                                 {[
@@ -490,8 +609,8 @@ export function ModificationJourneyDialog({
                                             formData.source === channel.id ? channel.activeClass : `border-gray-100 bg-white ${channel.inactiveClass}`
                                         )}
                                     >
-                                        <channel.icon className={cn("h-5 w-5", channel.iconClass)} />
-                                        <span className="text-xs font-bold">{channel.label}</span>
+                                        <channel.icon className={cn("h-4 w-4", channel.iconClass)} />
+                                        <span className="text-[10px] font-bold">{channel.label}</span>
                                     </div>
                                 ))}
                             </div>
@@ -516,24 +635,39 @@ export function ModificationJourneyDialog({
             </DialogTrigger>
 
             {/* Removed metallic borders (border-white/20, etc) and glassmorphism. Using cleaner modern white card. */}
-            <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden bg-white border-none shadow-2xl rounded-2xl gap-0">
-                <DialogHeader className="p-6 pb-4 bg-gray-50 border-b border-gray-100">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] p-0 overflow-hidden bg-white border-none shadow-2xl rounded-2xl gap-0 flex flex-col">
+                <DialogHeader className="px-5 py-4 bg-gray-50 border-b border-gray-100 shrink-0">
                     <div className="flex items-center justify-between mb-2">
-                        <DialogTitle className="text-lg font-bold text-gray-800">
+                        <DialogTitle className="text-base font-bold text-gray-800">
                             Personalizar Projeto
                         </DialogTitle>
-                        <span className="text-xs font-semibold px-2 py-1 bg-gray-200 text-gray-700 rounded-full">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full">
                             Passo {step}/5
                         </span>
                     </div>
-                    <Progress value={(step / 5) * 100} className="h-1 bg-gray-200" indicatorClassName="bg-green-600" />
+
+                    {/* Project Info Badge */}
+                    <div className="flex items-center gap-2 mt-2 p-2.5 bg-white rounded-lg border border-gray-200">
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-0.5">Projeto</p>
+                            <p className="text-xs font-bold text-gray-900 truncate">{projectTitle}</p>
+                        </div>
+                        {projectCode && (
+                            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 border border-gray-200 shrink-0">
+                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Cód.</span>
+                                <span className="text-xs font-bold text-gray-900">{projectCode}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <Progress value={(step / 5) * 100} className="h-1 bg-gray-200 mt-2.5" />
                 </DialogHeader>
 
-                <div className="p-6 min-h-[440px] pb-8 bg-white flex flex-col">
+                <div className="px-5 py-4 bg-white flex flex-col overflow-y-auto flex-1">
                     {renderStep()}
                 </div>
 
-                <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-100 flex justify-between items-center shrink-0">
                     {step > 1 ? (
                         <Button
                             variant="ghost"

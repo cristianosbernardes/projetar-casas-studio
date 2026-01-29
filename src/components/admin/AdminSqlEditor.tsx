@@ -61,6 +61,55 @@ export const AdminSqlEditor = () => {
 
     const presets = [
         {
+            name: "🔧 Corrigir SQL Editor (RPC)",
+            sql: `-- =====================================================
+-- CORREÇÃO DO EDITOR SQL (RPC V2)
+-- =====================================================
+
+-- 1. Remove a função antiga para evitar conflito de tipo de retorno (Erro 42P13)
+DROP FUNCTION IF EXISTS public.admin_exec_sql(text);
+
+-- 2. Cria a nova versão da função de forma segura
+CREATE OR REPLACE FUNCTION public.admin_exec_sql(query_text TEXT)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    result JSON;
+    current_user_role public.app_role;
+BEGIN
+    -- 1. Verifica quem está chamando a função
+    SELECT role INTO current_user_role
+    FROM public.profiles
+    WHERE id = auth.uid();
+
+    -- 2. Bloqueia se não for Master
+    IF current_user_role IS DISTINCT FROM 'master' THEN
+        RAISE EXCEPTION 'Acesso negado. Apenas usuários Master podem executar SQL direto.';
+    END IF;
+
+    -- 3. Executa a query
+    IF (query_text ~* '^\\\\s*(SELECT|WITH)') THEN
+        EXECUTE 'SELECT COALESCE(json_agg(t), ''[]''::json) FROM (' || query_text || ') t' INTO result;
+    ELSE
+        EXECUTE query_text;
+        result := json_build_object('message', 'Comando executado com sucesso');
+    END IF;
+    
+    RETURN result;
+
+EXCEPTION WHEN OTHERS THEN
+    RETURN json_build_object('error', SQLERRM);
+END;
+$$;
+
+-- 3. Garante que a função seja acessível
+GRANT EXECUTE ON FUNCTION public.admin_exec_sql(TEXT) TO authenticated;
+
+COMMENT ON FUNCTION public.admin_exec_sql(TEXT) IS 'RPC para execução de SQL dinâmico restrito a usuários com cargo master.';`
+        },
+        {
             name: "📊 Listar Projetos Recentes",
             sql: "SELECT id, title, price, width_meters, depth_meters, created_at FROM projects ORDER BY created_at DESC LIMIT 20"
         },

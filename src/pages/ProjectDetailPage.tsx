@@ -370,7 +370,11 @@ const ProjectDetailPage = () => {
 
                   {/* Secondary Actions */}
                   <div className="space-y-3 pt-2">
-                    <ModificationJourneyDialog projectTitle={project.title} />
+                    <ModificationJourneyDialog
+                      projectTitle={project.title}
+                      projectId={project.id}
+                      projectCode={project.id?.slice(0, 4)}
+                    />
                   </div>
                 </div>
               </div>
