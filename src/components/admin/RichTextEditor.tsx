@@ -4,15 +4,16 @@ import 'react-quill/dist/quill.snow.css';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { convertToWebP } from '@/lib/image-optimizer';
 
 interface RichTextEditorProps {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
+    projectId?: string; // Add projectId prop
 }
 
-export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, placeholder, projectId }: RichTextEditorProps) {
     const quillRef = useRef<ReactQuill>(null);
     const { toast } = useToast();
 
@@ -27,34 +28,40 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
             const file = input.files?.[0];
             if (!file) return;
 
+            // Ensure we have a projectId (or at least a temp folder)
+            const targetFolder = projectId || 'temp';
+
             try {
-                // 1. Upload to Supabase
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-                const filePath = `${fileName}`;
+                toast({ title: 'Processando imagem...', description: 'Convertendo para WebP e enviando.' });
 
-                // Show toast for feedback
-                toast({ title: 'Enviando imagem...', description: 'Aguarde o upload.' });
+                // 1. Convert to WebP
+                const webpFile = await convertToWebP(file, 0.8);
+                const fileExt = 'webp';
+                const fileName = `${targetFolder}/${crypto.randomUUID()}.${fileExt}`;
 
+                // 2. Upload to Supabase (Project Images Bucket)
                 const { error: uploadError } = await supabase.storage
                     .from('project-images')
-                    .upload(filePath, file);
+                    .upload(fileName, webpFile, {
+                        contentType: 'image/webp',
+                        upsert: false
+                    });
 
                 if (uploadError) throw uploadError;
 
-                // 2. Get Public URL
+                // 3. Get Public URL
                 const { data: { publicUrl } } = supabase.storage
                     .from('project-images')
-                    .getPublicUrl(filePath);
+                    .getPublicUrl(fileName);
 
-                // 3. Insert into Editor
+                // 4. Insert into Editor
                 const quill = quillRef.current?.getEditor();
                 if (quill) {
                     const range = quill.getSelection(true);
                     quill.insertEmbed(range.index, 'image', publicUrl);
                     quill.setSelection(range.index + 1, 0); // Move cursor forward
 
-                    toast({ title: 'Sucesso!', description: 'Imagem inserida com sucesso.' });
+                    toast({ title: 'Sucesso!', description: 'Imagem inserida.' });
                 }
 
             } catch (error: any) {
@@ -83,7 +90,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
                 image: imageHandler
             }
         }
-    }), []);
+    }), [projectId]); // Re-create modules if projectId changes (captured in closure)
 
     return (
         <div className="bg-white rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">

@@ -9,7 +9,7 @@ interface ProjectCardProps {
 
 const ProjectCard = ({ project }: ProjectCardProps) => {
   const coverImage = project.project_images?.find(img => img.is_cover) || project.project_images?.[0];
-  
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -35,7 +35,7 @@ const ProjectCard = ({ project }: ProjectCardProps) => {
               <span className="text-muted-foreground">Sem imagem</span>
             </div>
           )}
-          
+
           {/* Featured badge */}
           {project.is_featured && (
             <div className="absolute top-3 left-3 px-3 py-1 bg-accent text-accent-foreground text-xs font-semibold rounded-full">
@@ -44,8 +44,9 @@ const ProjectCard = ({ project }: ProjectCardProps) => {
           )}
 
           {/* Price overlay */}
-          <div className="absolute bottom-3 right-3 px-4 py-2 bg-background/95 backdrop-blur-sm rounded-lg">
-            <span className="price-tag">{formatPrice(project.price)}</span>
+          <div className="absolute bottom-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg shadow-black/20 flex flex-col items-end border border-white/10 backdrop-blur-md">
+            <span className="text-[10px] uppercase font-medium tracking-wider opacity-90">A partir de</span>
+            <span className="text-xl font-bold tracking-tight">{formatPrice(project.price)}</span>
           </div>
         </div>
 

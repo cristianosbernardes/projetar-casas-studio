@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, ArrowRight, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '@/components/layout/Layout';
 import ProjectCard from '@/components/projects/ProjectCard';
 import { Button } from '@/components/ui/button';
@@ -83,7 +84,6 @@ const ProjectsPage = () => {
       if (style && project.style !== style) {
         return false;
       }
-      return true;
       return true;
     });
   }, [projects, width, depth, code, bedrooms, bathrooms, suites, garage, style]);
@@ -274,121 +274,189 @@ const ProjectsPage = () => {
 
   return (
     <Layout>
-      {/* Header */}
-      <section className="bg-primary text-primary-foreground py-12 lg:py-16">
-        <div className="section-container">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">
-            Projetos de Casas
-          </h1>
-          <p className="text-primary-foreground/80 text-lg max-w-2xl">
-            Encontre o projeto ideal para o seu terreno. Use os filtros para buscar
-            por dimensões, número de quartos e estilo.
-          </p>
-        </div>
-      </section>
+      {/* Search Header with Background Image */}
+      <section className="relative h-[480px] w-full bg-slate-900 flex flex-col items-center justify-center text-center px-4 overflow-hidden">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 w-full h-full bg-cover bg-center opacity-60 mix-blend-overlay transition-opacity duration-700"
+          style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1600596542815-6ad4c727dd2c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80")' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-black/30" />
 
-      {/* Filters Bar */}
-      <section className="sticky top-16 z-40 bg-background border-b border-border py-4">
-        <div className="section-container">
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Quick search */}
-            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-              <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="number"
-                  placeholder="Frente do terreno (m)"
-                  value={width}
-                  onChange={(e) => setWidth(e.target.value)}
-                  className="pl-10"
-                />
+        {/* Hero Content */}
+        <div className="relative z-10 max-w-4xl mx-auto space-y-6 pt-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight drop-shadow-lg">
+              Sua casa dos sonhos começa aqui
+            </h1>
+            <p className="text-lg text-white/90 max-w-2xl mx-auto font-medium drop-shadow-md">
+              Mais de {projects?.length || '50'} projetos exclusivos prontos para construir.
+            </p>
+          </motion.div>
+
+          {/* Glassmorphism Filters Box - Centered and Overlapping */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="w-full max-w-6xl mx-auto mt-8"
+          >
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/20 shadow-2xl">
+              <div className="flex flex-col lg:flex-row gap-4 items-center">
+
+                {/* Main Priorities: Bedrooms & Bathrooms */}
+                <div className="flex flex-1 gap-2 w-full lg:w-auto min-w-[300px]">
+                  <div className="flex-1 space-y-1">
+                    <Select value={bedrooms} onValueChange={setBedrooms}>
+                      <SelectTrigger className="h-12 bg-background/60 border-white/10 backdrop-blur-sm text-foreground hover:bg-background/80 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground"><Check className="h-4 w-4" /></span>
+                          <SelectValue placeholder="Quartos" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2">2 Quartos</SelectItem>
+                        <SelectItem value="3">3 Quartos</SelectItem>
+                        <SelectItem value="4">4+ Quartos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <Select value={bathrooms} onValueChange={setBathrooms}>
+                      <SelectTrigger className="h-12 bg-background/60 border-white/10 backdrop-blur-sm text-foreground hover:bg-background/80 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground"><Check className="h-4 w-4" /></span>
+                          <SelectValue placeholder="Banheiros" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 Banheiro</SelectItem>
+                        <SelectItem value="2">2 Banheiros</SelectItem>
+                        <SelectItem value="3">3+ Banheiros</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="hidden lg:block w-[1px] h-10 bg-white/10 mx-2"></div>
+
+                {/* Secondary Search: Terrain Dimensions */}
+                <div className="flex items-center gap-2 w-full lg:w-auto flex-1">
+                  <div className="relative flex-1 group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <Input
+                      type="number"
+                      placeholder="Frente (m)"
+                      value={width}
+                      onChange={(e) => setWidth(e.target.value)}
+                      className="pl-9 h-12 bg-background/40 border-white/10 hover:bg-background/60 focus:bg-background/80 transition-all placeholder:text-muted-foreground/70"
+                    />
+                  </div>
+                  <div className="relative flex-1">
+                    <Input
+                      type="number"
+                      placeholder="Fundo (m)"
+                      value={depth}
+                      onChange={(e) => setDepth(e.target.value)}
+                      className="h-12 bg-background/40 border-white/10 hover:bg-background/60 focus:bg-background/80 transition-all placeholder:text-muted-foreground/70"
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-3 w-full lg:w-auto pt-4 lg:pt-0">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`flex-1 lg:flex-none gap-2 bg-background/80 hover:bg-background text-foreground border-white/10 h-12 px-6 ${showFilters ? 'ring-2 ring-primary' : ''}`}
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    <span>Mais</span>
+                  </Button>
+
+                  <Button onClick={handleApplyFilters} className="flex-[2] lg:flex-none h-12 px-8 text-lg font-bold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                    Buscar
+                  </Button>
+
+                  {hasActiveFilters && (
+                    <Button variant="ghost" size="icon" onClick={handleClearFilters} className="h-12 w-12 text-white hover:text-white hover:bg-white/10">
+                      <X className="h-5 w-5" />
+                    </Button>
+                  )}
+                </div>
               </div>
-              <span className="text-muted-foreground">x</span>
-              <Input
-                type="number"
-                placeholder="Fundo (m)"
-                value={depth}
-                onChange={(e) => setDepth(e.target.value)}
-                className="max-w-[140px]"
-              />
+
+              {/* Expandable Advanced Filters */}
+              <AnimatePresence>
+                {showFilters && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                    animate={{ height: 'auto', opacity: 1, marginTop: 16 }}
+                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-white/10">
+                      <Select value={suites} onValueChange={setSuites}>
+                        <SelectTrigger className="bg-background/60 border-transparent h-10">
+                          <SelectValue placeholder="Suítes" />
+                        </SelectTrigger>
+                        <SelectContent><SelectItem value="">Qualquer</SelectItem><SelectItem value="1">1</SelectItem><SelectItem value="2">2+</SelectItem></SelectContent>
+                      </Select>
+                      <Select value={garage} onValueChange={setGarage}>
+                        <SelectTrigger className="bg-background/60 border-transparent h-10">
+                          <SelectValue placeholder="Vagas" />
+                        </SelectTrigger>
+                        <SelectContent><SelectItem value="">Qualquer</SelectItem><SelectItem value="1">1</SelectItem><SelectItem value="2">2+</SelectItem></SelectContent>
+                      </Select>
+                      <Select value={style} onValueChange={setStyle}>
+                        <SelectTrigger className="bg-background/60 border-transparent h-10">
+                          <SelectValue placeholder="Estilo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Qualquer</SelectItem>
+                          <SelectItem value="Moderno">Moderno</SelectItem>
+                          <SelectItem value="Contemporâneo">Contemporâneo</SelectItem>
+                          <SelectItem value="Rústico">Rústico</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder="Código (Ex: 101)"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        className="h-10 bg-background/60 border-transparent"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-
-            {/* Filter button */}
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-              className={showFilters ? 'bg-secondary' : ''}
-            >
-              <SlidersHorizontal className="h-4 w-4 mr-2" />
-              Filtros
-            </Button>
-
-            {/* Apply filters */}
-            <Button onClick={handleApplyFilters}>
-              Buscar
-            </Button>
-
-            {/* Clear filters */}
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={handleClearFilters}>
-                <X className="h-4 w-4 mr-1" />
-                Limpar
-              </Button>
-            )}
-          </div>
-
-          {/* Extended filters */}
-          {showFilters && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-border animate-fade-in">
-              <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Quartos</label>
-                <Select value={bedrooms} onValueChange={setBedrooms}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Qualquer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Qualquer</SelectItem>
-                    <SelectItem value="1">1 Quarto</SelectItem>
-                    <SelectItem value="2">2 Quartos</SelectItem>
-                    <SelectItem value="3">3 Quartos</SelectItem>
-                    <SelectItem value="4">4+ Quartos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Estilo</label>
-                <Select value={style} onValueChange={setStyle}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Qualquer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Qualquer</SelectItem>
-                    <SelectItem value="Moderno">Moderno</SelectItem>
-                    <SelectItem value="Contemporâneo">Contemporâneo</SelectItem>
-                    <SelectItem value="Rústico">Rústico</SelectItem>
-                    <SelectItem value="Clássico">Clássico</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
+          </motion.div>
         </div>
       </section>
 
       {/* Projects Grid */}
-      <section className="py-8 lg:py-12">
+      <section className="py-12 bg-background">
         <div className="section-container">
-          {/* Results count */}
-          <p className="text-muted-foreground mb-6">
-            {displayProjects.length} projeto{displayProjects.length !== 1 ? 's' : ''} encontrado{displayProjects.length !== 1 ? 's' : ''}
-          </p>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              Projetos em Destaque
+            </h2>
+            <span className="text-muted-foreground text-sm bg-secondary px-3 py-1 rounded-full">
+              {displayProjects.length} resultado{displayProjects.length !== 1 ? 's' : ''}
+            </span>
+          </div>
 
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="card-premium animate-pulse">
-                  <div className="aspect-[4/3] bg-muted" />
-                  <div className="p-5 space-y-4">
+                <div key={i} className="rounded-2xl overflow-hidden bg-card border border-border/50 h-[400px] animate-pulse">
+                  <div className="h-2/3 bg-muted" />
+                  <div className="p-6 space-y-4">
                     <div className="h-6 bg-muted rounded w-3/4" />
                     <div className="h-4 bg-muted rounded w-1/2" />
                   </div>
@@ -396,21 +464,49 @@ const ProjectsPage = () => {
               ))}
             </div>
           ) : displayProjects.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-xl text-muted-foreground mb-4">
-                Nenhum projeto encontrado com os filtros aplicados.
+            <div className="flex flex-col items-center justify-center py-20 text-center bg-secondary/20 rounded-3xl border border-dashed border-border min-h-[400px]">
+              <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-6">
+                <Search className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Nenhum projeto encontrado</h3>
+              <p className="text-muted-foreground max-w-md mb-8">
+                Não encontramos projetos com as características selecionadas. Tente ajustar os filtros ou limpar a busca.
               </p>
               <Button variant="outline" onClick={handleClearFilters}>
                 Limpar Filtros
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 stagger-children">
-              {displayProjects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {displayProjects.map((project, index) => (
+                <motion.div
+                  key={project.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                >
+                  <ProjectCard project={project} />
+                </motion.div>
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* CTA Custom Project */}
+      <section className="py-20 bg-primary text-primary-foreground relative overflow-hidden mt-auto">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
+        <div className="section-container relative z-10 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6">Não encontrou o que procurava?</h2>
+          <p className="text-primary-foreground/90 text-lg max-w-2xl mx-auto mb-10">
+            Nossa equipe de arquitetos pode desenvolver um projeto exclusivo e 100% personalizado para o seu terreno e suas necessidades.
+          </p>
+          <Link to="/projeto-personalizado">
+            <Button size="lg" variant="secondary" className="font-semibold text-primary hover:scale-105 transition-transform shadow-xl">
+              Solicitar Projeto Personalizado
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </Link>
         </div>
       </section>
     </Layout>

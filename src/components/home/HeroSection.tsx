@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowRight, ChevronDown, ChevronUp, Car, BedDouble, Bath, Ruler, Hash, Hotel } from 'lucide-react';
+import { Search, ArrowRight, BedDouble, Bath, Ruler, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import heroImage from '@/assets/hero-house.jpg';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -11,15 +12,11 @@ import { getOptimizedImageUrl } from '@/integrations/supabase/client';
 
 const HeroSection = () => {
   const navigate = useNavigate();
-  const [width, setWidth] = useState('');
-  const [depth, setDepth] = useState('');
-  const [code, setCode] = useState('');
+  const [minArea, setMinArea] = useState('');
   const [bedrooms, setBedrooms] = useState('');
   const [bathrooms, setBathrooms] = useState('');
   const [suites, setSuites] = useState('');
-  const [garage, setGarage] = useState('');
-
-  const [isAdvanced, setIsAdvanced] = useState(false);
+  const [type, setType] = useState('');
 
   // Fetch Banners
   const { data: banners } = useQuery({
@@ -39,232 +36,194 @@ const HeroSection = () => {
     staleTime: 1000 * 60 * 5 // 5 min
   });
 
-  const activeBanner = (banners as any[])?.[0]; // Taking the first one for now, or rotate logic later
+  const activeBanner = (banners as any[])?.[0];
   const displayImage = activeBanner?.image_url
     ? getOptimizedImageUrl(activeBanner.image_url, { width: 1920, quality: 80 })
     : heroImage;
-  const displayTitle = activeBanner?.title || "O projeto da sua";
-  const displaySubtitle = activeBanner?.subtitle || "vida começa aqui";
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    if (width) params.set('width', width);
-    if (depth) params.set('depth', depth);
-    if (code) params.set('code', code);
+    if (minArea) params.set('min_area', minArea);
     if (bedrooms) params.set('bedrooms', bedrooms);
     if (bathrooms) params.set('bathrooms', bathrooms);
     if (suites) params.set('suites', suites);
-    if (garage) params.set('garage', garage);
+    if (type) params.set('type', type);
     navigate(`/projetos?${params.toString()}`);
   };
 
   return (
-    <section className="relative min-h-[90vh] flex items-center overflow-hidden">
+    <section className="relative min-h-screen flex items-center overflow-hidden">
       {/* Background Image with Parallax-like effect */}
       <div className="absolute inset-0 z-0">
-        {/* Dark overlay for text contrast - constant dark regardless of theme */}
-        <div className="absolute inset-0 bg-black/60 z-10" />
+        <div className="absolute inset-0 bg-black/40 z-10" />
         <img
           src={displayImage}
-          alt={displayTitle}
+          alt="Banner Principal"
           className="w-full h-full object-cover scale-105 animate-slow-zoom"
         />
-        {/* Gradient to smooth the transition, ensuring text readability */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent z-10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/30 z-10" />
       </div>
 
       {/* Content */}
-      <div className="relative z-20 section-container py-20">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-8 animate-fade-up">
-            {/* Badge */}
-            <Badge variant="secondary" className="px-4 py-2 text-sm backdrop-blur-md bg-white/10 text-white border-white/20 hover:bg-white/20 transition-all font-medium tracking-wide">
-              ✨ Mais de 100 projetos exclusivos
-            </Badge>
+      <div className="relative z-20 section-container py-20 flex flex-col justify-center h-full">
+        <div className="grid lg:grid-cols-2 gap-12 xl:gap-20 items-center">
 
-            {/* Title */}
-            <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight drop-shadow-md">
+          {/* Left Text Block */}
+          <div className="space-y-8 animate-fade-up max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/90 text-sm font-medium tracking-wide">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+              Projetos Exclusivos & Prontos para Construir
+            </div>
+
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.1] tracking-tight drop-shadow-lg">
               {activeBanner ? (
                 <>
                   {activeBanner.title} <br />
-                  <span className="text-primary">{activeBanner.subtitle}</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-emerald-300">
+                    {activeBanner.subtitle}
+                  </span>
                 </>
               ) : (
                 <>
                   O projeto da sua <br />
-                  <span className="text-primary">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-emerald-300">
                     vida começa aqui
                   </span>
                 </>
               )}
             </h1>
 
-            {/* Description */}
-            <p className="text-lg md:text-xl text-white/90 leading-relaxed max-w-xl font-medium drop-shadow-sm">
-              Plantas prontas de alto padrão, detalhadas e aprovadas por arquitetos renomados.
-              Encontre a combinação perfeita para o seu terreno.
+            <p className="text-lg md:text-xl text-white/80 leading-relaxed max-w-xl font-light">
+              Explore nossa coleção curada de projetos arquitetônicos de alto padrão. Detalhamento completo, aprovação garantida e design atemporal.
             </p>
 
-            {/* CTA Buttons */}
             <div className="flex flex-wrap gap-4 pt-4">
               <Button
                 size="lg"
                 onClick={() => navigate('/projetos')}
-                className="h-14 px-8 text-lg bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all hover:scale-105"
+                className="h-14 px-8 text-base font-semibold bg-white text-black hover:bg-white/90 transition-all hover:scale-105 rounded-full"
               >
-                Ver Projetos
-                <ArrowRight className="h-5 w-5 ml-2" />
+                Ver Todos os Projetos
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
           </div>
 
-          {/* Premium Search Card */}
-          <div className="w-full max-w-lg mx-auto lg:ml-auto animate-fade-up" style={{ animationDelay: '0.2s' }}>
+          {/* Right Filters Card */}
+          <div className="w-full animate-fade-up" style={{ animationDelay: '0.2s' }}>
             <form
               onSubmit={handleSearch}
-              className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden group"
+              className="bg-black/40 backdrop-blur-2xl border border-white/10 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group hover:border-white/20 transition-all duration-500"
             >
-              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+              <div className="absolute -top-20 -right-20 w-60 h-60 bg-primary/20 rounded-full blur-[80px] pointer-events-none" />
 
-              <div className="relative mb-6">
-                <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2">
-                  <Search className="h-5 w-5 text-primary" />
+              <div className="relative mb-8">
+                <h3 className="text-2xl font-semibold text-white mb-2 flex items-center gap-3">
                   Encontre seu projeto
                 </h3>
-                <p className="text-white/60 text-sm">
-                  Preencha as características do terreno ou da casa
+                <div className="w-12 h-1 bg-primary rounded-full mb-3"></div>
+                <p className="text-white/60 text-sm font-light">
+                  Selecione as características ideais.
                 </p>
               </div>
 
-              <div className="space-y-4">
-                {/* Dimensions Group */}
+              <div className="space-y-6">
+
+                {/* Row 1: Quartos & Banheiros */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs uppercase font-bold text-white/60 tracking-wider pl-1">
+                      Quartos
+                    </label>
+                    <Select value={bedrooms} onValueChange={setBedrooms}>
+                      <SelectTrigger className="h-12 bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all rounded-xl px-4 focus:ring-1 focus:ring-primary/50 focus:border-primary/50">
+                        <div className="flex items-center gap-2">
+                          <BedDouble className="h-4 w-4 text-primary opacity-80" />
+                          <SelectValue placeholder="Qualquer" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-900/95 border-white/10 backdrop-blur-xl text-white">
+                        <SelectItem value="2">2 Quartos</SelectItem>
+                        <SelectItem value="3">3 Quartos</SelectItem>
+                        <SelectItem value="4">4+ Quartos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs uppercase font-bold text-white/60 tracking-wider pl-1">
+                      Banheiros
+                    </label>
+                    <Select value={bathrooms} onValueChange={setBathrooms}>
+                      <SelectTrigger className="h-12 bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all rounded-xl px-4 focus:ring-1 focus:ring-primary/50 focus:border-primary/50">
+                        <div className="flex items-center gap-2">
+                          <Bath className="h-4 w-4 text-primary opacity-80" />
+                          <SelectValue placeholder="Qualquer" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-900/95 border-white/10 backdrop-blur-xl text-white">
+                        <SelectItem value="1">1 Banheiro</SelectItem>
+                        <SelectItem value="2">2 Banheiros</SelectItem>
+                        <SelectItem value="3">3+ Banheiros</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Row 2: Suítes & Tipo */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs uppercase font-bold text-white/60 tracking-wider pl-1">
+                      Suítes
+                    </label>
+                    <Select value={suites} onValueChange={setSuites}>
+                      <SelectTrigger className="h-12 bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all rounded-xl px-4 focus:ring-1 focus:ring-primary/50 focus:border-primary/50">
+                        <div className="flex items-center gap-2">
+                          <Home className="h-4 w-4 text-primary opacity-80" />
+                          <SelectValue placeholder="Qualquer" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-900/95 border-white/10 backdrop-blur-xl text-white">
+                        <SelectItem value="1">1 Suíte</SelectItem>
+                        <SelectItem value="2">2 Suítes</SelectItem>
+                        <SelectItem value="3">3+ Suítes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs uppercase font-bold text-white/60 tracking-wider pl-1">
+                      Tipo
+                    </label>
+                    <Select value={type} onValueChange={setType}>
+                      <SelectTrigger className="h-12 bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all rounded-xl px-4 focus:ring-1 focus:ring-primary/50 focus:border-primary/50">
+                        <div className="flex items-center gap-2">
+                          <Home className="h-4 w-4 text-primary opacity-80" />
+                          <SelectValue placeholder="Qualquer" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-900/95 border-white/10 backdrop-blur-xl text-white">
+                        <SelectItem value="térrea">Térrea</SelectItem>
+                        <SelectItem value="sobrado">Sobrado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Row 3: Área */}
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-white/80 uppercase tracking-wider flex items-center gap-2">
-                    <Ruler className="h-3 w-3" />
-                    Dimensões do Terreno
+                  <label className="text-xs uppercase font-bold text-white/60 tracking-wider pl-1">
+                    Área Construída (Mínima)
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="relative group/input">
-                      <Input
-                        id="width"
-                        type="number"
-                        placeholder="Frente (m)"
-                        value={width}
-                        onChange={(e) => setWidth(e.target.value)}
-                        className="h-12 bg-black/20 border-white/10 text-white placeholder:text-white/40 focus:bg-black/40 focus:border-primary/50 transition-all pl-4"
-                        min="1"
-                        step="0.5"
-                      />
-                    </div>
-                    <div className="relative group/input">
-                      <Input
-                        id="depth"
-                        type="number"
-                        placeholder="Fundo (m)"
-                        value={depth}
-                        onChange={(e) => setDepth(e.target.value)}
-                        className="h-12 bg-black/20 border-white/10 text-white placeholder:text-white/40 focus:bg-black/40 focus:border-primary/50 transition-all pl-4"
-                        min="1"
-                        step="0.5"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Toggle Advanced */}
-                <div className="pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsAdvanced(!isAdvanced)}
-                    className="w-full justify-between h-12 border-white/10 bg-black/20 text-white hover:bg-black/30 hover:text-white hover:border-primary/50 transition-all group/toggle"
-                  >
-                    <span className="text-sm font-medium flex items-center gap-2">
-                      Mais filtros (Quartos, Cód, etc.)
-                    </span>
-                    {isAdvanced ? (
-                      <ChevronUp className="h-4 w-4 text-primary transition-transform group-hover/toggle:-translate-y-1" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-primary transition-transform group-hover/toggle:translate-y-1" />
-                    )}
-                  </Button>
-                </div>
-
-                {/* Advanced Fields with Animation */}
-                <div className={`grid grid-cols-2 gap-3 overflow-hidden transition-all duration-300 ease-in-out ${isAdvanced ? 'max-h-[300px] opacity-100 pt-2' : 'max-h-0 opacity-0'}`}>
-
-                  {/* Code */}
                   <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
-                      <Hash className="h-4 w-4" />
-                    </div>
-                    <Input
-                      type="text"
-                      placeholder="Cód."
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      className="h-10 bg-black/20 border-white/10 text-white placeholder:text-white/40 pl-9 focus:bg-black/40 focus:border-primary/50"
-                    />
-                  </div>
-
-                  {/* Bedrooms */}
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
-                      <BedDouble className="h-4 w-4" />
-                    </div>
+                    <Ruler className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary opacity-80" />
                     <Input
                       type="number"
-                      placeholder="Quartos"
-                      value={bedrooms}
-                      onChange={(e) => setBedrooms(e.target.value)}
-                      className="h-10 bg-black/20 border-white/10 text-white placeholder:text-white/40 pl-9 focus:bg-black/40 focus:border-primary/50"
-                      min="1"
-                    />
-                  </div>
-
-                  {/* Bathrooms */}
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
-                      <Bath className="h-4 w-4" />
-                    </div>
-                    <Input
-                      type="number"
-                      placeholder="Banheiros"
-                      value={bathrooms}
-                      onChange={(e) => setBathrooms(e.target.value)}
-                      className="h-10 bg-black/20 border-white/10 text-white placeholder:text-white/40 pl-9 focus:bg-black/40 focus:border-primary/50"
-                      min="1"
-                    />
-                  </div>
-
-                  {/* Suites */}
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
-                      <Hotel className="h-4 w-4" />
-                    </div>
-                    <Input
-                      type="number"
-                      placeholder="Suítes"
-                      value={suites}
-                      onChange={(e) => setSuites(e.target.value)}
-                      className="h-10 bg-black/20 border-white/10 text-white placeholder:text-white/40 pl-9 focus:bg-black/40 focus:border-primary/50"
-                      min="0"
-                    />
-                  </div>
-
-                  {/* Garage - New Field */}
-                  <div className="relative col-span-2">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
-                      <Car className="h-4 w-4" />
-                    </div>
-                    <Input
-                      type="number"
-                      placeholder="Vagas de Garagem"
-                      value={garage}
-                      onChange={(e) => setGarage(e.target.value)}
-                      className="h-10 bg-black/20 border-white/10 text-white placeholder:text-white/40 pl-9 focus:bg-black/40 focus:border-primary/50"
-                      min="0"
+                      placeholder="Ex: 150 m²"
+                      value={minArea}
+                      onChange={(e) => setMinArea(e.target.value)}
+                      className="h-12 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:bg-white/10 focus:border-primary/50 focus:ring-0 transition-all pl-10 rounded-xl text-base"
                     />
                   </div>
                 </div>
@@ -272,9 +231,12 @@ const HeroSection = () => {
                 <Button
                   type="submit"
                   size="lg"
-                  className="w-full h-14 text-lg font-semibold bg-white text-primary hover:bg-white/90 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl"
+                  className="w-full h-14 mt-2 text-lg font-bold bg-gradient-to-r from-primary to-emerald-600 hover:to-emerald-500 text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] rounded-xl flex items-center justify-between px-8 group/btn"
                 >
-                  Buscar Agora
+                  <span>Buscar Projetos</span>
+                  <div className="bg-white/20 p-2 rounded-full group-hover/btn:translate-x-1 transition-transform">
+                    <Search className="h-4 w-4" />
+                  </div>
                 </Button>
               </div>
             </form>

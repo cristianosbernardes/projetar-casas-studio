@@ -26,9 +26,8 @@ import { AdminCMS } from '@/components/admin/AdminCMS';
 import { AdminFinancial } from '@/components/admin/AdminFinancial';
 import { AdminNotifications } from '@/components/admin/AdminNotifications';
 import { useAuditLog } from '@/hooks/useAuditLog';
-export default function AdminDashboard() {
-  // ...
 
+export default function AdminDashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -46,6 +45,9 @@ export default function AdminDashboard() {
 
   // Form/Edit State
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<{ file: File, preview: string }[]>([]);
+  const [draftId, setDraftId] = useState<string>(crypto.randomUUID()); // ID for new projects to ensure folder consistency
+
   const [formData, setFormData] = useState<Partial<ProjectInsert>>({
     title: '',
     slug: '',
@@ -114,7 +116,6 @@ export default function AdminDashboard() {
       if (error) {
         toast({ title: 'Erro ao fazer login', description: error.message, variant: 'destructive' });
       } else {
-        // Force refresh of role and projects
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['user-role'] }),
           queryClient.invalidateQueries({ queryKey: ['admin-projects'] })
@@ -136,19 +137,56 @@ export default function AdminDashboard() {
     toast({ title: 'Logout realizado' });
   };
 
+  // HANDLERS FOR NEW PROJECT FILES
+  const handleFilesSelected = (files: File[]) => {
+    const newFiles = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+    setSelectedFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const handleRemoveLocalFile = (index: number) => {
+    setSelectedFiles(prev => {
+      const newFiles = [...prev];
+      URL.revokeObjectURL(newFiles[index].preview);
+      newFiles.splice(index, 1);
+      return newFiles;
+    });
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '', slug: '', description: '', price: 0, width_meters: 0, depth_meters: 0,
+      bedrooms: 0, bathrooms: 0, suites: 0, garage_spots: 0, built_area: 0,
+      style: 'Moderno', is_featured: false, price_electrical: 0, price_hydraulic: 0,
+      price_sanitary: 0, price_structural: 0,
+      code: '',
+    });
+    setEditingProject(null);
+    setSelectedFiles([]);
+    setDraftId(crypto.randomUUID()); // Reset draft ID for new project
+  };
+
+  const handleEdit = (project: Project) => {
+    setEditingProject(project);
+    setFormData(project);
+    setCurrentView('create');
+  };
+
   // Projects Mutation
   const projectMutation = useMutation({
     mutationFn: async (data: ProjectInsert & { project_images?: any }) => {
-      // Remove project_images from data as it's a relation, not a column
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { project_images, ...projectData } = data;
+      let projectId = editingProject?.id;
 
       if (editingProject) {
+        // UPDATE PROJECT
         // @ts-ignore
         const { error } = await supabase.from('projects').update(projectData).eq('id', editingProject.id);
         if (error) throw error;
 
-        // Log Update
         logAction({
           action: 'UPDATE',
           entity: 'PROJECTS',
@@ -156,16 +194,66 @@ export default function AdminDashboard() {
           details: { title: projectData.title, changes: projectData }
         });
       } else {
+        // CREATE PROJECT
+        // Use the draftId so we can ensure folder consistency with any RichText uploads that happened before save
+        projectId = draftId;
+        const insertData = { ...projectData, id: projectId };
+
         // @ts-ignore
-        const { error } = await supabase.from('projects').insert([projectData]);
+        const { data: newProject, error } = await supabase.from('projects')
+          .insert([insertData])
+          .select()
+          .single();
+
         if (error) throw error;
 
-        // Log Creation
         logAction({
           action: 'CREATE',
           entity: 'PROJECTS',
           details: { title: projectData.title, slug: projectData.slug }
         });
+      }
+
+      // HANDLE INITIAL IMAGE UPLOAD (Only if new project and has files)
+      if (!editingProject && selectedFiles.length > 0 && projectId) {
+        // Import dynamically
+        const { convertToWebP } = await import('@/lib/image-optimizer');
+
+        // Upload sequentially with index tracking for display_order
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const { file } = selectedFiles[i];
+
+          try {
+            // 1. Convert
+            const webpFile = await convertToWebP(file, 0.8);
+            const fileExt = 'webp';
+            const fileName = `${projectId}/${crypto.randomUUID()}.${fileExt}`;
+
+            // 2. Upload
+            const { error: uploadError } = await supabase.storage
+              .from('project-images')
+              .upload(fileName, webpFile, { contentType: 'image/webp' });
+
+            if (uploadError) throw uploadError;
+
+            // 3. Get URL
+            const { data: { publicUrl } } = supabase.storage
+              .from('project-images')
+              .getPublicUrl(fileName);
+
+            // 4. Insert DB
+            await supabase.from('project_images').insert({
+              project_id: projectId,
+              image_url: publicUrl,
+              display_order: i + 1,
+              is_cover: i === 0 // First is cover
+            });
+
+          } catch (err) {
+            console.error("Error uploading initial image:", err);
+            toast({ title: "Erro no upload", description: `Falha ao enviar imagem ${i + 1}. Tente novamente editando o projeto.`, variant: "destructive" });
+          }
+        }
       }
     },
     onSuccess: () => {
@@ -264,24 +352,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const lastCode = projects?.find(p => p.code)?.code; // Projects are ordered by created_at desc, so first one with code is the last created
-
-  const resetForm = () => {
-    setFormData({
-      title: '', slug: '', description: '', price: 0, width_meters: 0, depth_meters: 0,
-      bedrooms: 0, bathrooms: 0, suites: 0, garage_spots: 0, built_area: 0,
-      style: 'Moderno', is_featured: false, price_electrical: 0, price_hydraulic: 0,
-      price_sanitary: 0, price_structural: 0,
-      code: '',
-    });
-    setEditingProject(null);
-  };
-
-  const handleEdit = (project: Project) => {
-    setEditingProject(project);
-    setFormData(project);
-    setCurrentView('create'); // Reuse create view for editing
-  };
+  const lastCode = projects?.find(p => p.code)?.code;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -354,7 +425,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AdminSidebar
-        currentView={currentView} // Reuse create view effectively for editing state too if handled
+        currentView={currentView}
         onViewChange={(view) => {
           if (view === 'create') resetForm();
           setCurrentView(view);
@@ -496,7 +567,6 @@ export default function AdminDashboard() {
               </Card>
             </div>
           )}
-
 
           {/* TRASH VIEW */}
           {currentView === 'trash' && (
@@ -696,6 +766,7 @@ export default function AdminDashboard() {
                         value={formData.description || ''}
                         onChange={(value) => setFormData({ ...formData, description: value })}
                         placeholder="Descreva o projeto detalhadamente. Use o ícone de imagem para adicionar fotos ao corpo do texto."
+                        projectId={editingProject?.id || draftId}
                       />
                     </div>
 
@@ -806,14 +877,12 @@ export default function AdminDashboard() {
                     {editingProject?.id ? (
                       <AdminImageGallery projectId={editingProject.id} />
                     ) : (
-                      <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-8 text-center bg-muted/5">
-                        <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
-                          <Save className="h-6 w-6 text-muted-foreground" />
-                        </div>
-                        <h3 className="font-medium text-lg mb-1">Salve o projeto primeiro</h3>
-                        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                          Para fazer o upload de imagens, primeiro preencha os dados básicos e salve o projeto.
-                        </p>
+                      <div className="bg-muted/5 rounded-xl">
+                        <AdminImageGallery
+                          onFilesSelected={handleFilesSelected}
+                          localFiles={selectedFiles}
+                          onRemoveLocalFile={handleRemoveLocalFile}
+                        />
                       </div>
                     )}
                   </CardContent>
@@ -838,5 +907,3 @@ export default function AdminDashboard() {
     </div >
   );
 };
-
-
