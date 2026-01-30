@@ -19,7 +19,7 @@ const FeaturedProjects = () => {
         .eq('is_featured', true)
         .order('created_at', { ascending: false })
         .limit(6);
-      
+
       if (error) throw error;
       return data as ProjectWithImages[];
     },
@@ -31,6 +31,7 @@ const FeaturedProjects = () => {
       id: '1',
       title: 'Casa Térrea Moderna com 3 Quartos - Cód. 101',
       slug: 'casa-terrea-moderna-3-quartos-101',
+      code: '101',
       description: 'Projeto moderno com ampla área social',
       price: 650,
       width_meters: 10,
@@ -43,6 +44,8 @@ const FeaturedProjects = () => {
       style: 'Moderno',
       is_featured: true,
       created_at: new Date().toISOString(),
+      deleted_at: null,
+      views: 0,
       price_electrical: 180,
       price_hydraulic: 150,
       price_sanitary: 120,
@@ -53,6 +56,7 @@ const FeaturedProjects = () => {
       id: '2',
       title: 'Sobrado Contemporâneo com Varanda Gourmet - Cód. 102',
       slug: 'sobrado-contemporaneo-varanda-102',
+      code: '102',
       description: 'Sobrado elegante com acabamentos premium',
       price: 890,
       width_meters: 12,
@@ -65,6 +69,8 @@ const FeaturedProjects = () => {
       style: 'Contemporâneo',
       is_featured: true,
       created_at: new Date().toISOString(),
+      deleted_at: null,
+      views: 0,
       price_electrical: 220,
       price_hydraulic: 180,
       price_sanitary: 150,
@@ -75,6 +81,7 @@ const FeaturedProjects = () => {
       id: '3',
       title: 'Casa Compacta para Terreno Estreito - Cód. 103',
       slug: 'casa-compacta-terreno-estreito-103',
+      code: '103',
       description: 'Ideal para terrenos de 5 metros de frente',
       price: 320,
       width_meters: 5,
@@ -87,6 +94,8 @@ const FeaturedProjects = () => {
       style: 'Moderno',
       is_featured: true,
       created_at: new Date().toISOString(),
+      deleted_at: null,
+      views: 0,
       price_electrical: 100,
       price_hydraulic: 80,
       price_sanitary: 70,

@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
-import { Bed, Bath, Car, Maximize } from 'lucide-react';
+import { Bed, Bath, Car, Maximize, MapPin } from 'lucide-react';
 import type { ProjectWithImages } from '@/types/database';
 import { getOptimizedImageUrl } from '@/integrations/supabase/client';
+import { Badge } from '@/components/ui/badge';
 
 interface ProjectCardProps {
   project: ProjectWithImages;
@@ -9,6 +10,12 @@ interface ProjectCardProps {
 
 const ProjectCard = ({ project }: ProjectCardProps) => {
   const coverImage = project.project_images?.find(img => img.is_cover) || project.project_images?.[0];
+
+  // Fallback: try to extract code from title if project.code is missing
+  // Looks for "Cód. 123" OR just a number at the end of the title "Title 123"
+  // Does not match if it looks like square meters (e.g. 100m²)
+  const titleMatch = project.title.match(/(?:Cód\.?|Ref\.?)\s*(\d+)|(?:^|\s)(\d+)$/i);
+  const displayCode = project.code || titleMatch?.[1] || titleMatch?.[2];
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -20,7 +27,7 @@ const ProjectCard = ({ project }: ProjectCardProps) => {
 
   return (
     <Link to={`/projeto/${project.slug}`} className="group block">
-      <article className="card-premium">
+      <article className="bg-[#F3F4F6] rounded-2xl shadow-xl border border-gray-200 overflow-hidden transform transition-all duration-300 hover:shadow-2xl h-full flex flex-col">
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden">
           {coverImage ? (
@@ -35,61 +42,70 @@ const ProjectCard = ({ project }: ProjectCardProps) => {
               <span className="text-muted-foreground">Sem imagem</span>
             </div>
           )}
-
-          {/* Featured badge */}
-          {project.is_featured && (
-            <div className="absolute top-3 left-3 px-3 py-1 bg-accent text-accent-foreground text-xs font-semibold rounded-full">
-              Destaque
-            </div>
-          )}
-
-          {/* Price overlay */}
-          <div className="absolute bottom-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg shadow-black/20 flex flex-col items-end border border-white/10 backdrop-blur-md">
-            <span className="text-[10px] uppercase font-medium tracking-wider opacity-90">A partir de</span>
-            <span className="text-xl font-bold tracking-tight">{formatPrice(project.price)}</span>
-          </div>
         </div>
 
-        {/* Content */}
-        <div className="p-5 space-y-4">
+        {/* Content Body matches Price Card Layout */}
+        <div className="flex-1 p-6 pb-4 border-b border-gray-100 bg-gray-50/30 flex flex-col gap-4">
+
+          {/* Header Row: Badges & Code */}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              {project.is_featured && (
+                <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white border-0 shadow-sm px-2 text-[10px]">Destaque</Badge>
+              )}
+              <Badge variant="outline" className="bg-white text-gray-700 border-gray-200 text-[10px]">
+                {project.style || 'Moderno'}
+              </Badge>
+            </div>
+            {displayCode && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-gray-200 shadow-sm">
+                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Cód.</span>
+                <span className="text-xs font-bold text-gray-900">{displayCode}</span>
+              </div>
+            )}
+          </div>
+
           {/* Title */}
-          <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-2">
+          <h3 className="text-xl font-extrabold text-gray-900 leading-tight tracking-tight line-clamp-2">
             {project.title}
           </h3>
 
-          {/* Terrain info */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Maximize className="h-4 w-4" />
-            <span>Terreno: {project.width_meters}m x {project.depth_meters}m</span>
-          </div>
-
-          {/* Stats */}
-          <div className="flex flex-wrap gap-3">
-            <div className="stat-badge">
-              <Bed className="h-4 w-4" />
-              <span>{project.bedrooms} Quartos</span>
+          {/* Visual Stats Grid */}
+          <div className="grid grid-cols-4 gap-2 mt-auto">
+            <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-gray-100 shadow-sm hover:border-green-200 transition-colors group/stat">
+              <Bed className="h-3.5 w-3.5 text-gray-400 group-hover/stat:text-green-500 mb-1 transition-colors" />
+              <span className="font-bold text-gray-900 text-xs leading-none">{project.bedrooms}</span>
+              <span className="text-[8px] text-muted-foreground font-semibold uppercase tracking-wide mt-1">Quartos</span>
             </div>
-            {project.suites > 0 && (
-              <div className="stat-badge">
-                <span>{project.suites} Suíte{project.suites > 1 ? 's' : ''}</span>
-              </div>
-            )}
-            <div className="stat-badge">
-              <Bath className="h-4 w-4" />
-              <span>{project.bathrooms}</span>
+            <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-gray-100 shadow-sm hover:border-green-200 transition-colors group/stat">
+              <Bath className="h-3.5 w-3.5 text-gray-400 group-hover/stat:text-green-500 mb-1 transition-colors" />
+              <span className="font-bold text-gray-900 text-xs leading-none">{project.bathrooms}</span>
+              <span className="text-[8px] text-muted-foreground font-semibold uppercase tracking-wide mt-1">Banh.</span>
             </div>
-            {project.garage_spots > 0 && (
-              <div className="stat-badge">
-                <Car className="h-4 w-4" />
-                <span>{project.garage_spots}</span>
-              </div>
-            )}
+            <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-gray-100 shadow-sm hover:border-green-200 transition-colors group/stat">
+              <Car className="h-3.5 w-3.5 text-gray-400 group-hover/stat:text-green-500 mb-1 transition-colors" />
+              <span className="font-bold text-gray-900 text-xs leading-none">{project.garage_spots}</span>
+              <span className="text-[8px] text-muted-foreground font-semibold uppercase tracking-wide mt-1">Vagas</span>
+            </div>
+            <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-gray-100 shadow-sm hover:border-green-200 transition-colors group/stat">
+              <Maximize className="h-3.5 w-3.5 text-gray-400 group-hover/stat:text-green-500 mb-1 transition-colors" />
+              <span className="font-bold text-gray-900 text-xs leading-none">{project.built_area}m²</span>
+              <span className="text-[8px] text-muted-foreground font-semibold uppercase tracking-wide mt-1">Área</span>
+            </div>
           </div>
+        </div>
 
-          {/* Built area */}
-          <p className="text-sm text-muted-foreground">
-            Área construída: <span className="font-medium text-foreground">{project.built_area}m²</span>
-          </p>
+        {/* Footer Price Section */}
+        <div className="p-4 pt-0 bg-gray-50/30">
+          <div className="bg-white border border-green-100 rounded-xl p-3 flex items-center justify-between shadow-sm">
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">A partir de</span>
+              <span className="text-lg font-extrabold text-gray-900">{formatPrice(project.price)}</span>
+            </div>
+            <div className="h-8 w-8 rounded-full bg-green-50 flex items-center justify-center text-green-600">
+              <Maximize className="h-4 w-4 rotate-45" />
+            </div>
+          </div>
         </div>
       </article>
     </Link>
