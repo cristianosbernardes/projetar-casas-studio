@@ -24,9 +24,27 @@ import { ModificationRequest } from '@/types/database';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState } from "react";
+import { MessageCircle, Send } from "lucide-react";
+
+interface MessageTemplate {
+    id: string;
+    title: string;
+    content: string;
+}
 
 export function AdminLeadsList() {
     const [selectedRequest, setSelectedRequest] = useState<ModificationRequest | null>(null);
+    const [selectedLeadForMessage, setSelectedLeadForMessage] = useState<ModificationRequest | null>(null);
+
+    // Fetch templates
+    const { data: templates } = useQuery({
+        queryKey: ['message-templates-list'],
+        queryFn: async () => {
+            // @ts-ignore
+            const { data } = await supabase.from('message_templates').select('*').eq('active', true);
+            return data as MessageTemplate[];
+        }
+    });
 
     // Buscar leads do Supabase
     const { data: leads, isLoading } = useQuery({
@@ -124,7 +142,12 @@ export function AdminLeadsList() {
                                     >
                                         <Eye className="h-4 w-4" />
                                     </Button>
-                                    <Button size="sm" variant="outline" onClick={() => window.open(`https://wa.me/55${lead.whatsapp.replace(/\D/g, '')}`, '_blank')}>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        title="Enviar Mensagem"
+                                        onClick={() => setSelectedLeadForMessage(lead)}
+                                    >
                                         <MessageSquare className="h-4 w-4" />
                                     </Button>
                                 </TableCell>
@@ -255,6 +278,65 @@ export function AdminLeadsList() {
                     </DialogContent>
                 </Dialog>
             </CardContent>
+
+            {/* Modal de Seleção de Template */}
+            <Dialog open={!!selectedLeadForMessage} onOpenChange={() => setSelectedLeadForMessage(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Enviar Mensagem via WhatsApp</DialogTitle>
+                        <DialogDescription>
+                            Escolha um template ou inicie uma conversa em branco.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-3 py-4">
+                        <Button
+                            variant="outline"
+                            className="justify-start gap-2 h-auto py-3"
+                            onClick={() => {
+                                if (selectedLeadForMessage) {
+                                    window.open(`https://wa.me/55${selectedLeadForMessage.whatsapp.replace(/\D/g, '')}`, '_blank');
+                                    setSelectedLeadForMessage(null);
+                                }
+                            }}
+                        >
+                            <MessageSquare className="h-4 w-4" />
+                            <div>
+                                <span className="font-medium block text-left">Conversa em Branco</span>
+                                <span className="text-xs text-muted-foreground">Abrir WhatsApp sem texto pré-definido</span>
+                            </div>
+                        </Button>
+
+                        <div className="text-xs font-medium text-muted-foreground mt-2 uppercase tracking-wide">Templates</div>
+
+                        {!templates?.length && (
+                            <p className="text-sm text-muted-foreground italic">Nenhum template cadastrado em Configurações.</p>
+                        )}
+
+                        {templates?.map(template => (
+                            <Button
+                                key={template.id}
+                                variant="secondary"
+                                className="justify-start gap-2 h-auto py-3"
+                                onClick={() => {
+                                    if (selectedLeadForMessage) {
+                                        const text = template.content.replace(/\[nome\]/gi, selectedLeadForMessage.name.split(' ')[0]);
+                                        const encoded = encodeURIComponent(text);
+                                        window.open(`https://wa.me/55${selectedLeadForMessage.whatsapp.replace(/\D/g, '')}?text=${encoded}`, '_blank');
+                                        setSelectedLeadForMessage(null);
+                                    }
+                                }}
+                            >
+                                <Send className="h-4 w-4" />
+                                <div className="overflow-hidden">
+                                    <span className="font-medium block text-left truncate">{template.title}</span>
+                                    <span className="text-xs text-muted-foreground block text-left truncate max-w-[300px]">{template.content}</span>
+                                </div>
+                            </Button>
+                        ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 }

@@ -4,8 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Database, Play, Save, Terminal } from 'lucide-react';
+import { Database, Play, Save, Terminal, Search, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 import {
     Table,
     TableBody,
@@ -20,6 +23,8 @@ export const AdminSqlEditor = () => {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
     const runQueryMutation = useMutation({
         mutationFn: async (sql: string) => {
@@ -233,12 +238,143 @@ ADD COLUMN IF NOT EXISTS country_ddi text;`
             sql: `-- Add attachment_url column to leads table
 alter table leads 
 add column if not exists attachment_url text;`
+        },
+        {
+            name: "🚀 Migração Completa (Fase 1-4)",
+            description: "Cria todas as tabelas: Logs, CMS, Vendas e Templates.",
+            sql: `-- MIGRATION CONSOLIDADA --
+-- 1. Logs
+CREATE TYPE public.log_action AS ENUM ('CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'EXPORT', 'OTHER');
+CREATE TYPE public.log_entity AS ENUM ('AUTH', 'PROJECTS', 'LEADS', 'SETTINGS', 'CMS', 'FINANCE', 'USERS');
+
+CREATE TABLE IF NOT EXISTS public.system_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id),
+    action_type TEXT NOT NULL,
+    entity TEXT NOT NULL,
+    entity_id TEXT,
+    details JSONB,
+    ip_address INET,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+ALTER TABLE public.system_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins can view all logs" ON public.system_logs FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('master', 'partner')));
+CREATE POLICY "System can insert logs" ON public.system_logs FOR INSERT TO authenticated WITH CHECK (true);
+
+-- 2. CMS
+CREATE TABLE IF NOT EXISTS public.site_banners (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT, subtitle TEXT, image_url TEXT NOT NULL, link_url TEXT, button_text TEXT DEFAULT 'Ver Detalhes', display_order INTEGER DEFAULT 0, active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS public.testimonials (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL, role TEXT, content TEXT NOT NULL, avatar_url TEXT, rating INTEGER DEFAULT 5, active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+ALTER TABLE public.site_banners ENABLE ROW LEVEL SECURITY; ALTER TABLE public.testimonials ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read banners" ON public.site_banners FOR SELECT USING (true);
+CREATE POLICY "Auth insert banners" ON public.site_banners FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Auth update banners" ON public.site_banners FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Auth delete banners" ON public.site_banners FOR DELETE TO authenticated USING (true);
+CREATE POLICY "Public read testimonials" ON public.testimonials FOR SELECT USING (true);
+CREATE POLICY "Auth insert testimonials" ON public.testimonials FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Auth update testimonials" ON public.testimonials FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Auth delete testimonials" ON public.testimonials FOR DELETE TO authenticated USING (true);
+
+-- OBS: A configuração do Storage (Bucket site-assets) deve ser feita manualmente no painel do Supabase pois requer permissões de superusuário.
+
+-- 3. Financeiro
+CREATE TABLE IF NOT EXISTS public.sales (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), lead_id UUID, project_id UUID REFERENCES public.projects(id), customer_name TEXT NOT NULL, customer_email TEXT, customer_document TEXT, amount NUMERIC NOT NULL, status TEXT DEFAULT 'paid', payment_method TEXT, sale_date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL, notes TEXT
+);
+ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Masters and Partners can view sales" ON public.sales FOR SELECT USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('master', 'partner')));
+CREATE POLICY "Masters and Partners can insert sales" ON public.sales FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('master', 'partner')));
+CREATE POLICY "Masters can update sales" ON public.sales FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'master'));
+
+-- 4. Templates
+CREATE TABLE IF NOT EXISTS public.message_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), title TEXT NOT NULL, content TEXT NOT NULL, category TEXT DEFAULT 'general', active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL, created_by UUID REFERENCES auth.users(id)
+);
+ALTER TABLE public.message_templates ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated users can view templates" ON public.message_templates FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert templates" ON public.message_templates FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update templates" ON public.message_templates FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete templates" ON public.message_templates FOR DELETE TO authenticated USING (true);`
+        },
+        {
+            name: "🔔 Criar Tabela de Notificações",
+            description: "Cria tabela notifications com RLS e políticas.",
+            sql: `-- Create Notifications Table
+CREATE TABLE IF NOT EXISTS public.notifications (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    message TEXT,
+    read BOOLEAN DEFAULT FALSE,
+    link TEXT,
+    type TEXT DEFAULT 'info', -- info, success, warning, error
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+-- Allow users to view their own notifications
+CREATE POLICY "Users can view own notifications" ON public.notifications
+    FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+-- Start with a broad insert policy for system logic (or use service role in edge functions)
+-- For client-side inserts (e.g. requesting something), allow authenticated
+CREATE POLICY "Users can insert notifications" ON public.notifications
+    FOR INSERT TO authenticated WITH CHECK (true);
+
+-- Allow users to mark as read (update)
+CREATE POLICY "Users can update own notifications" ON public.notifications
+    FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+
+-- Create index for performance
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON public.notifications(read);`
+        },
+        {
+            name: "🔔 Enviar Notificação de Teste",
+            description: "Envia uma notificação para você mesmo para testar o componente.",
+            sql: `INSERT INTO notifications (user_id, title, message, link, type)
+VALUES (
+  auth.uid(),
+  'Teste de Notificação 🚀',
+  'Funcionalidade ativa! Esta notificação foi gerada via SQL Editor.',
+  '/admin',
+  'success'
+);`
+        },
+        {
+            name: "🔧 Habilitar Realtime (Obrigatório)",
+            description: "Ativa as atualizações em tempo real para notificações.",
+            sql: `DO $$
+BEGIN
+  -- Tenta remover a tabela para evitar duplicação (ignora se não existir)
+  BEGIN
+    ALTER PUBLICATION supabase_realtime DROP TABLE notifications;
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
+  -- Adiciona a tabela ao realtime
+  ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+END $$;`
         }
     ];
 
-    const loadPreset = (sql: string) => {
-        setQuery(sql);
+    const loadPreset = (preset: { name: string, sql: string }) => {
+        setQuery(preset.sql);
+        setSelectedPreset(preset.name);
     };
+
+    const filteredPresets = presets.filter(preset =>
+        preset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        preset.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        preset.sql.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div className="space-y-6">
@@ -257,10 +393,15 @@ add column if not exists attachment_url text;`
             <div className="grid gap-6 md:grid-cols-[1fr_300px]">
                 <div className="space-y-6">
                     <Card>
-                        <CardHeader className="pb-3">
+                        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
                             <CardTitle className="text-sm font-medium flex items-center gap-2">
                                 <Terminal className="h-4 w-4" />
                                 Editor de Query
+                                {selectedPreset && (
+                                    <Badge variant="secondary" className="ml-2 font-normal text-xs bg-primary/10 text-primary border-primary/20">
+                                        {selectedPreset}
+                                    </Badge>
+                                )}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -270,7 +411,10 @@ add column if not exists attachment_url text;`
                                 className="font-mono min-h-[200px] bg-slate-950 text-slate-50 border-slate-800"
                                 placeholder="SELECT * FROM table..."
                             />
-                            <div className="flex justify-end mt-4">
+                            <div className="flex justify-between mt-4">
+                                <Button variant="ghost" size="sm" onClick={() => { setQuery(''); setSelectedPreset(null); }} className="text-muted-foreground hover:text-destructive">
+                                    Limpar
+                                </Button>
                                 <Button onClick={handleRun} disabled={runQueryMutation.isPending} className="gap-2">
                                     {runQueryMutation.isPending ? (
                                         "Executando..."
@@ -321,28 +465,49 @@ add column if not exists attachment_url text;`
                     )}
                 </div>
 
-                <div className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm font-medium">Presets</CardTitle>
-                            <CardDescription>Queries pré-configuradas</CardDescription>
+                <div className="space-y-4 h-[600px] flex flex-col">
+                    <Card className="flex-1 flex flex-col overflow-hidden">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium">Presets Disponíveis</CardTitle>
+                            <CardDescription>Queries pré-configuradas para análise rápida</CardDescription>
+                            <div className="pt-2">
+                                <div className="relative">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Buscar preset..."
+                                        className="pl-8"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                            </div>
                         </CardHeader>
-                        <CardContent className="space-y-2">
-                            {presets.map((preset, idx) => (
-                                <Button
-                                    key={idx}
-                                    variant="outline"
-                                    className="w-full justify-start text-left h-auto py-3"
-                                    onClick={() => loadPreset(preset.sql)}
-                                >
-                                    <div className="flex flex-col items-start gap-1">
-                                        <span className="font-medium">{preset.name}</span>
-                                        <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                            {preset.sql}
-                                        </span>
-                                    </div>
-                                </Button>
-                            ))}
+                        <CardContent className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                            {filteredPresets.length === 0 ? (
+                                <p className="text-sm text-center text-muted-foreground py-8">Nenhum preset encontrado.</p>
+                            ) : (
+                                filteredPresets.map((preset, idx) => (
+                                    <Button
+                                        key={idx}
+                                        variant={selectedPreset === preset.name ? "secondary" : "outline"}
+                                        className={cn(
+                                            "w-full justify-start text-left h-auto py-3 px-3 transition-all",
+                                            selectedPreset === preset.name ? "border-primary/50 bg-primary/5 shadow-sm" : "hover:border-primary/30"
+                                        )}
+                                        onClick={() => loadPreset(preset)}
+                                    >
+                                        <div className="flex flex-col items-start gap-1 w-full overflow-hidden">
+                                            <div className="flex items-center justify-between w-full">
+                                                <span className="font-medium truncate">{preset.name}</span>
+                                                {selectedPreset === preset.name && <CheckCircle2 className="h-3 w-3 text-primary flex-shrink-0" />}
+                                            </div>
+                                            <span className="text-xs text-muted-foreground truncate w-full opacity-80">
+                                                {preset.description || preset.sql}
+                                            </span>
+                                        </div>
+                                    </Button>
+                                ))
+                            )}
                         </CardContent>
                     </Card>
                 </div>

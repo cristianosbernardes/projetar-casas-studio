@@ -21,14 +21,21 @@ import { AdminOverview } from '@/components/admin/AdminOverview';
 import { AdminCRM } from '@/components/admin/AdminCRM';
 import { AdminModificationsList } from '@/components/admin/AdminModificationsList';
 import { AdminSettings } from '@/components/admin/AdminSettings';
+import { AdminAuditLogs } from '@/components/admin/AdminAuditLogs';
+import { AdminCMS } from '@/components/admin/AdminCMS';
+import { AdminFinancial } from '@/components/admin/AdminFinancial';
+import { AdminNotifications } from '@/components/admin/AdminNotifications';
+import { useAuditLog } from '@/hooks/useAuditLog';
 export default function AdminDashboard() {
   // ...
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // View State
-  const [currentView, setCurrentView] = useState<'overview' | 'properties' | 'leads' | 'modifications' | 'create' | 'trash' | 'users' | 'sql' | 'settings'>('overview');
+  const [currentView, setCurrentView] = useState<'overview' | 'properties' | 'leads' | 'modifications' | 'create' | 'trash' | 'users' | 'sql' | 'settings' | 'logs' | 'cms' | 'financial'>('overview');
   const { role, canDeleteProjects, canManageTeam, isEmployee, isMaster } = useUserRole();
+  const { logAction } = useAuditLog();
 
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -113,6 +120,7 @@ export default function AdminDashboard() {
           queryClient.invalidateQueries({ queryKey: ['admin-projects'] })
         ]);
         setIsAuthenticated(true);
+        logAction({ action: 'LOGIN', entity: 'AUTH', details: { email: email } });
         toast({ title: 'Login realizado!', description: 'Bem-vindo ao painel administrativo.' });
       }
     } catch (err: any) {
@@ -139,10 +147,25 @@ export default function AdminDashboard() {
         // @ts-ignore
         const { error } = await supabase.from('projects').update(projectData).eq('id', editingProject.id);
         if (error) throw error;
+
+        // Log Update
+        logAction({
+          action: 'UPDATE',
+          entity: 'PROJECTS',
+          entityId: editingProject.id,
+          details: { title: projectData.title, changes: projectData }
+        });
       } else {
         // @ts-ignore
         const { error } = await supabase.from('projects').insert([projectData]);
         if (error) throw error;
+
+        // Log Creation
+        logAction({
+          action: 'CREATE',
+          entity: 'PROJECTS',
+          details: { title: projectData.title, slug: projectData.slug }
+        });
       }
     },
     onSuccess: () => {
@@ -164,9 +187,12 @@ export default function AdminDashboard() {
     mutationFn: async (id: string) => {
       const { error } = await (supabase
         .from('projects')
+        // @ts-ignore
         .update({ deleted_at: new Date().toISOString() } as any)
         .eq('id', id) as any);
       if (error) throw error;
+
+      logAction({ action: 'DELETE', entity: 'PROJECTS', entityId: id, details: { type: 'soft_delete' } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
@@ -180,9 +206,12 @@ export default function AdminDashboard() {
     mutationFn: async (id: string) => {
       const { error } = await (supabase
         .from('projects')
+        // @ts-ignore
         .update({ deleted_at: null } as any)
         .eq('id', id) as any);
       if (error) throw error;
+
+      logAction({ action: 'UPDATE', entity: 'PROJECTS', entityId: id, details: { type: 'restore' } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
@@ -196,6 +225,8 @@ export default function AdminDashboard() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('projects').delete().eq('id', id);
       if (error) throw error;
+
+      logAction({ action: 'DELETE', entity: 'PROJECTS', entityId: id, details: { type: 'permanent_delete' } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-projects-trash'] });
@@ -211,6 +242,8 @@ export default function AdminDashboard() {
         .delete()
         .not('deleted_at', 'is', null);
       if (error) throw error;
+
+      logAction({ action: 'DELETE', entity: 'PROJECTS', details: { type: 'empty_trash' } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-projects-trash'] });
@@ -331,6 +364,11 @@ export default function AdminDashboard() {
 
       <main className="ml-64 p-8">
         <div className="max-w-6xl mx-auto space-y-8">
+
+          {/* Header Area */}
+          <div className="flex justify-end items-center mb-[-2rem]">
+            <AdminNotifications />
+          </div>
 
           {/* OVERVIEW VIEW */}
           {currentView === 'overview' && (
@@ -561,6 +599,21 @@ export default function AdminDashboard() {
           {/* SETTINGS VIEW */}
           {currentView === 'settings' && (
             <AdminSettings />
+          )}
+
+          {/* LOGS VIEW */}
+          {currentView === 'logs' && (isMaster || canManageTeam) && (
+            <AdminAuditLogs />
+          )}
+
+          {/* CMS VIEW */}
+          {currentView === 'cms' && (
+            <AdminCMS />
+          )}
+
+          {/* FINANCIAL VIEW */}
+          {currentView === 'financial' && (
+            <AdminFinancial />
           )}
 
           {/* CREATE / EDIT VIEW */}

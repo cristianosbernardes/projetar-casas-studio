@@ -31,9 +31,11 @@ import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { ModificationRequest, ModificationHistory } from '@/types/database';
 import { AdminModificationsStats } from './AdminModificationsStats';
+import { useAuditLog } from '@/hooks/useAuditLog';
 
 export function AdminModificationsList() {
     const { toast } = useToast();
+    const { logAction } = useAuditLog();
     const queryClient = useQueryClient();
     const [selectedRequest, setSelectedRequest] = useState<ModificationRequest | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -80,6 +82,7 @@ export function AdminModificationsList() {
             const oldStatus = currentRequest?.status;
 
             // 1. Atualizar status
+            // @ts-ignore
             const { error: updateError } = await supabase
                 .from('modification_requests')
                 .update({ status })
@@ -92,6 +95,7 @@ export function AdminModificationsList() {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (oldStatus !== status) {
+                // @ts-ignore
                 await supabase
                     .from('modification_history')
                     .insert({
@@ -101,6 +105,18 @@ export function AdminModificationsList() {
                         changed_by: user?.id,
                         notes: `Status alterado de ${oldStatus} para ${status}`
                     });
+
+                // Log de Auditoria do Sistema
+                logAction({
+                    action: 'UPDATE',
+                    entity: 'LEADS', // Usando LEADS pois modificação é um tipo de lead
+                    entityId: id,
+                    details: {
+                        from: oldStatus,
+                        to: status,
+                        type: 'modification_status_change'
+                    }
+                });
             }
         },
         onSuccess: () => {

@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import heroImage from '@/assets/hero-house.jpg';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
+import { getOptimizedImageUrl } from '@/integrations/supabase/client';
 
 const HeroSection = () => {
   const navigate = useNavigate();
@@ -15,7 +18,33 @@ const HeroSection = () => {
   const [bathrooms, setBathrooms] = useState('');
   const [suites, setSuites] = useState('');
   const [garage, setGarage] = useState('');
+
   const [isAdvanced, setIsAdvanced] = useState(false);
+
+  // Fetch Banners
+  const { data: banners } = useQuery({
+    queryKey: ['home-banners'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_banners')
+        .select('*')
+        .eq('active', true)
+        .order('display_order');
+      if (error) {
+        console.error('Error fetching banners:', error);
+        return null;
+      }
+      return data;
+    },
+    staleTime: 1000 * 60 * 5 // 5 min
+  });
+
+  const activeBanner = (banners as any[])?.[0]; // Taking the first one for now, or rotate logic later
+  const displayImage = activeBanner?.image_url
+    ? getOptimizedImageUrl(activeBanner.image_url, { width: 1920, quality: 80 })
+    : heroImage;
+  const displayTitle = activeBanner?.title || "O projeto da sua";
+  const displaySubtitle = activeBanner?.subtitle || "vida começa aqui";
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,8 +66,8 @@ const HeroSection = () => {
         {/* Dark overlay for text contrast - constant dark regardless of theme */}
         <div className="absolute inset-0 bg-black/60 z-10" />
         <img
-          src={heroImage}
-          alt="Casa moderna"
+          src={displayImage}
+          alt={displayTitle}
           className="w-full h-full object-cover scale-105 animate-slow-zoom"
         />
         {/* Gradient to smooth the transition, ensuring text readability */}
@@ -56,10 +85,19 @@ const HeroSection = () => {
 
             {/* Title */}
             <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight drop-shadow-md">
-              O projeto da sua <br />
-              <span className="text-primary">
-                vida começa aqui
-              </span>
+              {activeBanner ? (
+                <>
+                  {activeBanner.title} <br />
+                  <span className="text-primary">{activeBanner.subtitle}</span>
+                </>
+              ) : (
+                <>
+                  O projeto da sua <br />
+                  <span className="text-primary">
+                    vida começa aqui
+                  </span>
+                </>
+              )}
             </h1>
 
             {/* Description */}
