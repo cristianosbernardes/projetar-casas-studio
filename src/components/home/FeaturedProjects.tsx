@@ -117,7 +117,7 @@ const FeaturedProjects = () => {
     <section className="py-16 lg:py-24 bg-muted/30">
       <div className="section-container">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
               Projetos em Destaque
@@ -139,23 +139,23 @@ const FeaturedProjects = () => {
 
         {/* Projects Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-            {[1, 2, 3].map((i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-5">
+            {[1, 2, 3, 4].map((i) => (
               <div key={i} className="card-premium animate-pulse">
                 <div className="aspect-[4/3] bg-muted" />
-                <div className="p-5 space-y-4">
-                  <div className="h-6 bg-muted rounded w-3/4" />
-                  <div className="h-4 bg-muted rounded w-1/2" />
+                <div className="p-4 space-y-3">
+                  <div className="h-5 bg-muted rounded w-3/4" />
+                  <div className="h-3 bg-muted rounded w-1/2" />
                   <div className="flex gap-2">
-                    <div className="h-8 bg-muted rounded w-20" />
-                    <div className="h-8 bg-muted rounded w-20" />
+                    <div className="h-6 bg-muted rounded w-16" />
+                    <div className="h-6 bg-muted rounded w-16" />
                   </div>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 stagger-children">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-5 stagger-children">
             {displayProjects.map((project) => (
               <ProjectCard key={project.id} project={project} />
             ))}

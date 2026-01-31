@@ -46,7 +46,7 @@ const BestSellersSection = () => {
 
             <div className="section-container relative z-10">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-16">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
                     <div className="space-y-2">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
@@ -75,24 +75,24 @@ const BestSellersSection = () => {
 
                 {/* Projects Grid */}
                 {isLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="h-[420px] bg-slate-800/50 rounded-2xl animate-pulse border border-slate-700" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-5">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="h-[380px] bg-slate-800/50 rounded-2xl animate-pulse border border-slate-700" />
                         ))}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 stagger-children">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-5 stagger-children">
                         {projects?.map((project, index) => (
                             <div key={project.id} className="relative group">
                                 {/* Ranking Badge */}
-                                <div className="absolute -top-4 -left-4 z-20 flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 text-white font-bold text-xl shadow-lg border-2 border-[#0F172A] transform transition-transform group-hover:scale-110">
+                                <div className="absolute -top-3 -left-3 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 text-white font-bold text-lg shadow-lg border-2 border-[#0F172A] transform transition-transform group-hover:scale-110">
                                     #{index + 1}
                                 </div>
 
                                 {/* Crown for #1 */}
                                 {index === 0 && (
-                                    <div className="absolute -top-9 -left-4 z-20 text-yellow-400 animate-bounce delay-700">
-                                        <Crown className="w-12 h-12 fill-current" />
+                                    <div className="absolute -top-7 -left-3 z-20 text-yellow-400 animate-bounce delay-700">
+                                        <Crown className="w-10 h-10 fill-current" />
                                     </div>
                                 )}
 

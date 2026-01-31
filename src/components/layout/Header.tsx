@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Phone, Mail, Home, LogIn, MonitorCog } from 'lucide-react';
+import { Menu, X, Phone, Mail, Home, LogIn, MonitorCog, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
+import { useFavorites } from '@/contexts/FavoritesContext';
 
 const Header = () => {
   // Header Component - Main Navigation
@@ -12,6 +13,7 @@ const Header = () => {
   const location = useLocation();
   const { role, isLoading } = useUserRole();
   const [user, setUser] = useState<any>(null);
+  const { count } = useFavorites();
 
   useEffect(() => {
     // Check initial user
@@ -105,6 +107,15 @@ const Header = () => {
 
           {/* CTA Button */}
           <div className="hidden md:flex items-center gap-4">
+            <Link to="/favoritos" className="relative group p-2 hover:bg-red-50 rounded-full transition-colors flex items-center justify-center">
+              <Heart className="h-5 w-5 text-gray-500 group-hover:text-red-500 transition-colors" />
+              {count > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center shadow-sm animate-in zoom-in">
+                  {count}
+                </span>
+              )}
+            </Link>
+
             {!user && (
               <Link to="/auth">
                 <Button variant="ghost" size="sm" className="gap-2">
@@ -147,6 +158,12 @@ const Header = () => {
                 </Link>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
+                <Link to="/favoritos" onClick={() => setIsMenuOpen(false)}>
+                  <Button variant="outline" className="w-full gap-2 border-red-200 text-red-600 hover:text-red-700 hover:bg-red-50">
+                    <Heart className="h-4 w-4 fill-red-600" />
+                    Meus Favoritos {count > 0 && `(${count})`}
+                  </Button>
+                </Link>
                 {!user && (
                   <Link to="/auth" onClick={() => setIsMenuOpen(false)}>
                     <Button variant="ghost" className="w-full gap-2">
