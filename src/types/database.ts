@@ -26,6 +26,7 @@ export interface Database {
           built_area: number
           style: string | null
           is_featured: boolean
+          is_best_seller: boolean
           created_at: string
           deleted_at: string | null
           price_electrical: number | null
@@ -33,6 +34,7 @@ export interface Database {
           price_sanitary: number | null
           price_structural: number | null
           views: number | null
+          status: 'published' | 'draft' | 'archived'
         }
         Insert: {
           id?: string
@@ -50,6 +52,7 @@ export interface Database {
           built_area: number
           style?: string | null
           is_featured?: boolean
+          is_best_seller?: boolean
           created_at?: string
           deleted_at?: string | null
           price_electrical?: number | null
@@ -57,6 +60,7 @@ export interface Database {
           price_sanitary?: number | null
           price_structural?: number | null
           views?: number | null
+          status?: 'published' | 'draft' | 'archived'
         }
         Update: {
           id?: string
@@ -74,6 +78,7 @@ export interface Database {
           built_area?: number
           style?: string | null
           is_featured?: boolean
+          is_best_seller?: boolean
           created_at?: string
           deleted_at?: string | null
           price_electrical?: number | null
@@ -81,6 +86,7 @@ export interface Database {
           price_sanitary?: number | null
           price_structural?: number | null
           views?: number | null
+          status?: 'published' | 'draft' | 'archived'
         }
       }
       project_images: {
@@ -88,23 +94,53 @@ export interface Database {
           id: string
           project_id: string
           image_url: string
-          is_cover: boolean
           display_order: number
+          is_cover: boolean
+          created_at: string
         }
         Insert: {
           id?: string
           project_id: string
           image_url: string
-          is_cover?: boolean
           display_order?: number
+          is_cover?: boolean
+          created_at?: string
         }
         Update: {
           id?: string
           project_id?: string
           image_url?: string
-          is_cover?: boolean
           display_order?: number
+          is_cover?: boolean
+          created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "project_images_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      project_styles: {
+        Row: {
+          id: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          created_at?: string
+        }
+        Relationships: []
       }
       leads: {
         Row: {

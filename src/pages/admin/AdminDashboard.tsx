@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, Trash2, Home, LogIn, Image as ImageIcon, Loader2, Save, ExternalLink, RefreshCcw, XCircle, Eye, EyeOff } from 'lucide-react';
+import { Edit, Trash2, Home, LogIn, Image as ImageIcon, Loader2, Save, ExternalLink, RefreshCcw, XCircle, Eye, EyeOff, Search, Copy, FileText } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminImageGallery } from '@/components/admin/AdminImageGallery';
 import { AdminLeadsList } from '@/components/admin/AdminLeadsList';
@@ -26,6 +26,14 @@ import { AdminCMS } from '@/components/admin/AdminCMS';
 import { AdminFinancial } from '@/components/admin/AdminFinancial';
 import { AdminNotifications } from '@/components/admin/AdminNotifications';
 import { useAuditLog } from '@/hooks/useAuditLog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { StyleManagerDialog } from '@/components/admin/StyleManagerDialog';
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -47,6 +55,8 @@ export default function AdminDashboard() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<{ file: File, preview: string }[]>([]);
   const [draftId, setDraftId] = useState<string>(crypto.randomUUID()); // ID for new projects to ensure folder consistency
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
 
   const [formData, setFormData] = useState<Partial<ProjectInsert>>({
     title: '',
@@ -67,6 +77,8 @@ export default function AdminDashboard() {
     price_hydraulic: 0,
     price_sanitary: 0,
     price_structural: 0,
+    is_best_seller: false,
+    status: 'published', // Default to published
   });
 
   // Check auth status on mount
@@ -98,12 +110,29 @@ export default function AdminDashboard() {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .not('deleted_at', 'is', null)
+        .is('deleted_at', null) // Trash has deleted_at NOT null
+        .not('deleted_at', 'is', null) // Double check syntax for "is not null"
         .order('deleted_at', { ascending: false });
       if (error) throw error;
       return data as Project[];
     },
     enabled: isAuthenticated && currentView === 'trash',
+  });
+
+  // Fetch styles
+  const { data: styles, refetch: refetchStyles } = useQuery({
+    queryKey: ['project-styles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('project_styles')
+        .select('*')
+        .order('name');
+
+      // Silent error if table doesn't exist yet
+      if (error) return [];
+      return data as { id: string; name: string }[];
+    },
+    enabled: isAuthenticated,
   });
 
   // Login Handler
@@ -160,8 +189,8 @@ export default function AdminDashboard() {
       title: '', slug: '', description: '', price: 0, width_meters: 0, depth_meters: 0,
       bedrooms: 0, bathrooms: 0, suites: 0, garage_spots: 0, built_area: 0,
       style: 'Moderno', is_featured: false, price_electrical: 0, price_hydraulic: 0,
-      price_sanitary: 0, price_structural: 0,
-      code: '',
+      price_sanitary: 0, price_structural: 0, is_best_seller: false,
+      code: '', status: 'published',
     });
     setEditingProject(null);
     setSelectedFiles([]);
@@ -339,6 +368,68 @@ export default function AdminDashboard() {
     },
   });
 
+  const handleDuplicateProject = async (project: ProjectWithImages) => {
+    try {
+      // 1. Prepare new project data
+      const newSlug = `${project.slug}-copy-${Date.now()}`;
+      const newTitle = `${project.title} (Cópia)`;
+
+      // Exclude properties that should not be duplicated or are auto-generated
+      const { id, created_at, deleted_at, project_images, ...projectData } = project;
+
+      const newProjectData = {
+        ...projectData,
+        title: newTitle,
+        slug: newSlug,
+        code: project.code ? `${project.code}-COPY` : null,
+        is_featured: false,
+        is_best_seller: false,
+        status: 'draft', // Set as draft initially
+        views: 0
+      };
+
+      // 2. Insert new project
+      const { data: insertedProject, error: insertError } = await supabase
+        .from('projects')
+        .insert(newProjectData)
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+      if (!insertedProject) throw new Error('Falha ao inserir projeto duplicado.');
+
+      // 3. Duplicate images
+      if (project.project_images && project.project_images.length > 0) {
+        const newImages = project.project_images.map(img => ({
+          project_id: insertedProject.id,
+          image_url: img.image_url,
+          display_order: img.display_order,
+          is_cover: img.is_cover
+        }));
+
+        const { error: imagesError } = await supabase
+          .from('project_images')
+          .insert(newImages); // @ts-ignore - TS might complain about array insert but it works
+
+        if (imagesError) console.error('Error duplicating images:', imagesError);
+      }
+
+      toast({
+        title: "Sucesso!",
+        description: "Projeto duplicado como Rascunho.",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
+    } catch (error) {
+      console.error('Error duplicating project:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao duplicar",
+        description: "Ocorreu um erro ao duplicar o projeto.",
+      });
+    }
+  };
+
   // Code Logic
   const checkCodeDuplication = (code: string) => {
     if (!code || !projects) return;
@@ -353,6 +444,44 @@ export default function AdminDashboard() {
   };
 
   const lastCode = projects?.find(p => p.code)?.code;
+
+  const filteredProjects = projects?.filter(project => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      project.title.toLowerCase().includes(searchLower) ||
+      (project.code && project.code.toLowerCase().includes(searchLower))
+    );
+  });
+
+  const sortedProjects = [...(filteredProjects || [])].sort((a, b) => {
+    const { key, direction } = sortConfig;
+    let comparison = 0;
+
+    switch (key) {
+      case 'price':
+      case 'bedrooms':
+      case 'bathrooms':
+      case 'suites':
+      case 'built_area': // Adding built_area as it's useful too
+        // @ts-ignore - dynamic access to numbered properties
+        comparison = (a[key] || 0) - (b[key] || 0);
+        break;
+      case 'code':
+        // Extract numbers from "COD. 123" string
+        const codeA = parseInt(a.code?.replace(/\D/g, '') || '0');
+        const codeB = parseInt(b.code?.replace(/\D/g, '') || '0');
+        comparison = codeA - codeB;
+        break;
+      case 'created_at':
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        break;
+      default:
+        // @ts-ignore
+        comparison = String(a[key] || '').localeCompare(String(b[key] || ''));
+    }
+
+    return direction === 'asc' ? comparison : -comparison;
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -483,8 +612,50 @@ export default function AdminDashboard() {
               </div>
 
               <Card>
-                <CardHeader>
-                  <CardTitle>Projetos Cadastrados ({projects?.length || 0})</CardTitle>
+                <CardHeader className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 pb-4">
+                  <CardTitle>Projetos Cadastrados ({sortedProjects?.length || 0})</CardTitle>
+                  <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                    {/* Sort Select */}
+                    <div className="w-full md:w-48">
+                      <Select
+                        value={`${sortConfig.key}-${sortConfig.direction}`}
+                        onValueChange={(value) => {
+                          const [key, direction] = value.split('-');
+                          // @ts-ignore
+                          setSortConfig({ key, direction });
+                        }}
+                      >
+                        <SelectTrigger>
+                          {/* Add ArrowUpDown icon to import if needed, assuming generic SelectValue handles display */}
+                          <SelectValue placeholder="Ordenar por" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="created_at-desc">Mais Recentes</SelectItem>
+                          <SelectItem value="created_at-asc">Mais Antigos</SelectItem>
+                          <SelectItem value="price-asc">Preço (Menor {'>'} Maior)</SelectItem>
+                          <SelectItem value="price-desc">Preço (Maior {'>'} Menor)</SelectItem>
+                          <SelectItem value="code-asc">Código (Crescente)</SelectItem>
+                          <SelectItem value="code-desc">Código (Decrescente)</SelectItem>
+                          <SelectItem value="bedrooms-desc">Mais Quartos</SelectItem>
+                          <SelectItem value="bedrooms-asc">Menos Quartos</SelectItem>
+                          <SelectItem value="suites-desc">Mais Suítes</SelectItem>
+                          <SelectItem value="bathrooms-desc">Mais Banheiros</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="w-full md:w-72">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar por nome ou código..."
+                          className="pl-9"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {isLoading ? (
@@ -492,15 +663,25 @@ export default function AdminDashboard() {
                       <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
                       Carregando projetos...
                     </div>
-                  ) : projects?.length === 0 ? (
+                  ) : filteredProjects?.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
-                      <Home className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Nenhum projeto cadastrado ainda.</p>
-                      <Button variant="link" onClick={() => setCurrentView('create')}>Cadastrar o primeiro</Button>
+                      {searchTerm ? (
+                        <>
+                          <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>Nenhum projeto encontrado para "{searchTerm}"</p>
+                          <Button variant="link" onClick={() => setSearchTerm('')}>Limpar busca</Button>
+                        </>
+                      ) : (
+                        <>
+                          <Home className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>Nenhum projeto cadastrado ainda.</p>
+                          <Button variant="link" onClick={() => setCurrentView('create')}>Cadastrar o primeiro</Button>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <div className="divide-y divide-border">
-                      {projects?.map((project) => {
+                      {sortedProjects?.map((project) => {
                         const coverImage = project.project_images?.find(img => img.is_cover)?.image_url || project.project_images?.[0]?.image_url;
 
                         return (
@@ -525,17 +706,45 @@ export default function AdminDashboard() {
                                   </span>
                                 )}
                               </div>
-                              <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                                <span>R$ {project.price.toLocaleString('pt-BR')}</span>
-                                <span>•</span>
+                              <div className="flex gap-4 text-xs md:text-sm text-muted-foreground mt-1 items-center">
+                                <span className="font-medium text-foreground">R$ {project.price.toLocaleString('pt-BR')}</span>
+                                <span className="hidden md:inline">•</span>
                                 <span>{project.built_area}m²</span>
-                                <span>•</span>
+                                <span className="hidden md:inline">•</span>
                                 <span>{project.bedrooms} Quartos</span>
+                                {project.views !== null && (
+                                  <>
+                                    <span className="hidden md:inline">•</span>
+                                    <span className="flex items-center gap-1 text-muted-foreground/80" title="Visualizações">
+                                      <Eye className="h-3 w-3" />
+                                      {project.views}
+                                    </span>
+                                  </>
+                                )}
                               </div>
                             </div>
 
                             <div className="flex items-center gap-2">
-                              {project.is_featured && <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded font-medium">Destaque</span>}
+                              {project.is_best_seller && (
+                                <span className="text-[10px] md:text-xs px-2 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full font-medium whitespace-nowrap">
+                                  Mais Vendido
+                                </span>
+                              )}
+                              {project.is_featured && (
+                                <span className="text-[10px] md:text-xs px-2 py-1 bg-yellow-100 text-yellow-800 border border-yellow-200 rounded-full font-medium whitespace-nowrap">
+                                  Destaque
+                                </span>
+                              )}
+                              {project.status === 'draft' && (
+                                <span className="text-[10px] md:text-xs px-2 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-full font-medium whitespace-nowrap flex items-center gap-1">
+                                  <FileText className="h-3 w-3" />
+                                  Rascunho
+                                </span>
+                              )}
+
+                              <Button variant="outline" size="sm" onClick={() => handleDuplicateProject(project)} title="Duplicar">
+                                <Copy className="h-4 w-4" />
+                              </Button>
 
                               <Button variant="outline" size="sm" onClick={() => window.open(`/projeto/${project.slug}`, '_blank')} title="Ver no site">
                                 <ExternalLink className="h-4 w-4" />
@@ -771,21 +980,61 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-6 pt-2">
-                      <div className="flex items-center gap-3 border p-4 rounded-lg bg-accent/5">
-                        <Switch
-                          checked={formData.is_featured}
-                          onCheckedChange={(c) => setFormData({ ...formData, is_featured: c })}
-                        />
-                        <Label>Destacar este imóvel na Home</Label>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 border p-4 rounded-lg bg-accent/5">
+                          <Switch
+                            checked={formData.is_featured}
+                            onCheckedChange={(c) => setFormData({ ...formData, is_featured: c })}
+                          />
+                          <Label>Destacar este imóvel na Home</Label>
+                        </div>
+
+                        <div className="flex items-center gap-3 border p-4 rounded-lg bg-emerald-500/5 border-emerald-500/20">
+                          <Switch
+                            checked={formData.is_best_seller}
+                            onCheckedChange={(c) => setFormData({ ...formData, is_best_seller: c })}
+                            className="data-[state=checked]:bg-emerald-500"
+                          />
+                          <div>
+                            <Label className="block">Marcar como "Mais Vendido"</Label>
+                            <span className="text-xs text-muted-foreground">Aparecerá na seção de destaques de vendas</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 border p-4 rounded-lg bg-slate-100 border-slate-200">
+                          <Switch
+                            checked={formData.status === 'published'}
+                            onCheckedChange={(c) => setFormData({ ...formData, status: c ? 'published' : 'draft' })}
+                            className="data-[state=checked]:bg-blue-600"
+                          />
+                          <div>
+                            <Label className="block">Status: {formData.status === 'published' ? 'Publicado' : 'Rascunho'}</Label>
+                            <span className="text-xs text-muted-foreground">
+                              {formData.status === 'published'
+                                ? 'Visível para todos os visitantes do site'
+                                : 'Oculto do site, visível apenas no Admin'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                       <div className="border p-4 rounded-lg bg-accent/5">
-                        <Label>Estilo Arquitetônico</Label>
-                        <Input
-                          className="mt-2 bg-background"
+                        <div className="flex items-center justify-between mb-2">
+                          <Label>Estilo Arquitetônico</Label>
+                          <StyleManagerDialog onStylesChange={refetchStyles} />
+                        </div>
+                        <Select
                           value={formData.style || ''}
-                          onChange={(e) => setFormData({ ...formData, style: e.target.value })}
-                          placeholder="Ex: Moderno, Neoclássico"
-                        />
+                          onValueChange={(value) => setFormData({ ...formData, style: value })}
+                        >
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="Selecione o estilo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {styles?.map((s) => (
+                              <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </CardContent>

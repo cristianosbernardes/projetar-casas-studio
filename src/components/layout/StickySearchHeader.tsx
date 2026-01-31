@@ -106,8 +106,7 @@ const StickySearchHeader = () => {
                             onChange={(e) => setDepth(e.target.value)}
                         />
 
-                        {/* Search Button */}
-                        <Button onClick={handleSearch} className="gap-2 ml-2">
+                        <Button onClick={handleSearch} className="gap-2 ml-2 bg-gradient-to-r from-blue-900 to-emerald-500 hover:from-blue-800 hover:to-emerald-400 text-white shadow-md shadow-emerald-500/20 border-0">
                             <Search className="h-4 w-4" />
                             <span className="hidden sm:inline">Buscar</span>
                         </Button>

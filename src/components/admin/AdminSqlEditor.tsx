@@ -66,6 +66,62 @@ export const AdminSqlEditor = () => {
 
     const presets = [
         {
+            name: "🏆 Adicionar Feature Mais Vendidos",
+            description: "Adiciona coluna is_best_seller e índices para destaque na Home",
+            sql: `-- Adicionar flag de "Mais Vendido" na tabela de projetos
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN DEFAULT FALSE;
+
+-- Criar índice para melhorar performance das buscas por mais vendidos
+CREATE INDEX IF NOT EXISTS idx_projects_best_seller ON public.projects(is_best_seller);
+
+-- Comentário: Após rodar, execute UPDATE projects SET is_best_seller = TRUE WHERE id = 'ID_DO_PROJETO';`
+        },
+        {
+            name: "⚡ Definir Top 3 Recentes como Mais Vendidos",
+            description: "Marca automaticamente os 3 projetos mais novos como Best Sellers",
+            sql: `-- 1. Limpa a seleção atual (opcional, remova se quiser acumular)
+UPDATE projects SET is_best_seller = false WHERE true;
+
+-- 2. Marca os 3 projetos mais recentes
+UPDATE projects
+SET is_best_seller = true
+WHERE id IN (
+  SELECT id FROM projects ORDER BY created_at DESC LIMIT 3
+);
+
+-- 3. Confirmação
+SELECT title, created_at, is_best_seller FROM projects WHERE is_best_seller = true ORDER BY created_at DESC;`
+        },
+        {
+            name: "🏛️ Criar Tabela de Estilos Arquitetônicos",
+            description: "Cria tabela auxiliar para gerenciar estilos no dropdown",
+            sql: `-- 1. Criar tabela de estilos
+CREATE TABLE IF NOT EXISTS public.project_styles (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 2. Habilitar RLS (Segurança)
+ALTER TABLE public.project_styles ENABLE ROW LEVEL SECURITY;
+
+-- 3. Políticas de Acesso (Leitura pública, Escrita apenas Admin)
+CREATE POLICY "Estilos visíveis para todos" ON public.project_styles FOR SELECT USING (true);
+CREATE POLICY "Admin pode gerenciar estilos" ON public.project_styles FOR ALL USING (auth.role() = 'authenticated');
+
+-- 4. Popular com estilos existentes (migração)
+INSERT INTO public.project_styles (name)
+SELECT DISTINCT style 
+FROM projects 
+WHERE style IS NOT NULL AND style != ''
+ON CONFLICT (name) DO NOTHING;
+
+-- 5. Inserir alguns padrões caso esteja vazio
+INSERT INTO public.project_styles (name) VALUES 
+('Moderno'), ('Neoclássico'), ('Industrial'), ('Rústico'), ('Minimalista')
+ON CONFLICT (name) DO NOTHING;`
+        },
+        {
             name: "🔧 Corrigir SQL Editor (RPC)",
             sql: `-- =====================================================
 -- CORREÇÃO DO EDITOR SQL (RPC V2)
@@ -183,6 +239,19 @@ COMMENT ON COLUMN modification_requests.whatsapp_full IS 'WhatsApp completo com 
         {
             name: "🧹 Limpar Cache de Projetos (Exemplo)",
             sql: "-- Este é apenas um comentário de exemplo\nSELECT 'Sistema pronto para manutenção' as status"
+        },
+        {
+            name: 'Adicionar Campo Status (Draft/Published)',
+            description: 'Adiciona a coluna status na tabela projects para controle de rascunhos',
+            sql: `-- Add status column to projects table
+ALTER TABLE projects 
+ADD COLUMN IF NOT EXISTS status text DEFAULT 'published';
+
+-- Update existing projects to be published
+UPDATE projects SET status = 'published' WHERE status IS NULL;
+
+-- Create an index for performance
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);`
         },
         {
             id: 'modifications-history',

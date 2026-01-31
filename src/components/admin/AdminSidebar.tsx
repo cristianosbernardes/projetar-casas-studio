@@ -71,8 +71,7 @@ export function AdminSidebar({ currentView, onViewChange, onLogout }: AdminSideb
 
                 {/* External Link */}
                 <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-3 mb-6 bg-sidebar-accent/30 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-300 transition-all"
+                    className="w-full justify-start gap-3 mb-6 bg-gradient-to-r from-blue-900 to-emerald-500 hover:from-blue-800 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/20 border-0 transition-all hover:scale-[1.02]"
                     onClick={() => window.open('/', '_blank')}
                 >
                     <Globe className="h-4 w-4" />

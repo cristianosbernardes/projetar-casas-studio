@@ -17,6 +17,7 @@ const FeaturedProjects = () => {
           project_images (*)
         `)
         .eq('is_featured', true)
+        .eq('status', 'published')
         .order('created_at', { ascending: false })
         .limit(6);
 
@@ -51,6 +52,8 @@ const FeaturedProjects = () => {
       price_sanitary: 120,
       price_structural: 280,
       project_images: [],
+      status: 'published',
+      is_best_seller: false
     },
     {
       id: '2',
@@ -76,6 +79,8 @@ const FeaturedProjects = () => {
       price_sanitary: 150,
       price_structural: 350,
       project_images: [],
+      status: 'published',
+      is_best_seller: false
     },
     {
       id: '3',
@@ -101,6 +106,8 @@ const FeaturedProjects = () => {
       price_sanitary: 70,
       price_structural: 150,
       project_images: [],
+      status: 'published',
+      is_best_seller: false
     },
   ];
 
@@ -120,7 +127,10 @@ const FeaturedProjects = () => {
             </p>
           </div>
           <Link to="/projetos">
-            <Button variant="outline" size="lg">
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-blue-900 to-emerald-500 hover:from-blue-800 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/20 border-0 transition-all hover:scale-[1.02]"
+            >
               Ver Todos
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>

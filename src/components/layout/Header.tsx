@@ -105,14 +105,7 @@ const Header = () => {
 
           {/* CTA Button */}
           <div className="hidden md:flex items-center gap-4">
-            {user ? (
-              <Link to="/admin">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <MonitorCog className="h-4 w-4" />
-                  Painel Admin
-                </Button>
-              </Link>
-            ) : (
+            {!user && (
               <Link to="/auth">
                 <Button variant="ghost" size="sm" className="gap-2">
                   <LogIn className="h-4 w-4" />
@@ -154,14 +147,7 @@ const Header = () => {
                 </Link>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                {user ? (
-                  <Link to="/admin" onClick={() => setIsMenuOpen(false)}>
-                    <Button variant="outline" className="w-full gap-2">
-                      <MonitorCog className="h-4 w-4" />
-                      Painel Admin
-                    </Button>
-                  </Link>
-                ) : (
+                {!user && (
                   <Link to="/auth" onClick={() => setIsMenuOpen(false)}>
                     <Button variant="ghost" className="w-full gap-2">
                       <LogIn className="h-4 w-4" />
