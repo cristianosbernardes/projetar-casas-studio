@@ -362,16 +362,29 @@ const ProjectsPage = () => {
               <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
 
               <div className="relative space-y-6">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-semibold text-white flex items-center gap-2">
                     <Search className="h-5 w-5 text-primary" />
                     Filtrar Projetos
                   </h3>
-                  {hasActiveFilters && (
-                    <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-white/60 hover:text-white h-auto p-0 hover:bg-transparent">
-                      <X className="h-3 w-3 mr-1" /> Limpar filtros
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowFilters(!showFilters)}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-medium text-white/70 hover:text-white transition-all group"
+                    >
+                      {showFilters ? (
+                        <>Menos filtros <Search className="h-3 w-3 rotate-180 transition-transform" /></>
+                      ) : (
+                        <>Mais filtros <Search className="h-3 w-3 transition-transform group-hover:translate-y-0.5" /></>
+                      )}
+                    </button>
+                    {hasActiveFilters && (
+                      <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-white/50 hover:text-red-400 h-auto p-0 hover:bg-transparent text-xs">
+                        <X className="h-3 w-3 mr-1" /> Limpar
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Row 1: Quartos, Banheiros, Suítes, Tipo, Código */}
@@ -568,23 +581,10 @@ const ProjectsPage = () => {
 
 
 
-                {/* Toggle Button Centered below filters */}
-                <div className="flex justify-center -mt-6 relative z-20">
-                  <button
-                    type="button"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-black/40 border border-white/10 hover:bg-black/60 text-[10px] font-medium text-white/50 hover:text-white transition-all group backdrop-blur-md shadow-lg"
-                  >
-                    {showFilters ? (
-                      <>Menos filtros <Search className="h-3 w-3 rotate-180 transition-transform" /></>
-                    ) : (
-                      <>Mais filtros <Search className="h-3 w-3 transition-transform group-hover:translate-y-0.5" /></>
-                    )}
-                  </button>
-                </div>
+
 
                 {/* Form Footer Actions */}
-                <div className="flex flex-col md:flex-row items-center justify-end gap-4 pt-0 -mt-2">
+                <div className="flex flex-col md:flex-row items-center justify-end gap-4 pt-4">
                   <Button
                     onClick={handleApplyFilters}
                     size="lg"

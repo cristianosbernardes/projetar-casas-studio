@@ -241,16 +241,21 @@ COMMENT ON COLUMN modification_requests.whatsapp_full IS 'WhatsApp completo com 
             sql: "-- Este é apenas um comentário de exemplo\nSELECT 'Sistema pronto para manutenção' as status"
         },
         {
-            name: 'Adicionar Campo Status (Draft/Published)',
-            description: 'Adiciona a coluna status na tabela projects para controle de rascunhos',
-            sql: `-- Add status column to projects table
+            name: '🔧 Corrigir Tabela Projetos (Status + Views)',
+            description: 'Adiciona colunas status e views necessárias para duplicação',
+            sql: `-- 1. Adicionar coluna Status
 ALTER TABLE projects 
 ADD COLUMN IF NOT EXISTS status text DEFAULT 'published';
 
--- Update existing projects to be published
-UPDATE projects SET status = 'published' WHERE status IS NULL;
+-- 2. Adicionar coluna Views (Visualizações)
+ALTER TABLE projects 
+ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0;
 
--- Create an index for performance
+-- 3. Atualizar projetos existentes
+UPDATE projects SET status = 'published' WHERE status IS NULL;
+UPDATE projects SET views = 0 WHERE views IS NULL;
+
+-- 4. Criar índices
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);`
         },
         {

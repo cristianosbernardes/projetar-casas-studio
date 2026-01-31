@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, Trash2, Home, LogIn, Image as ImageIcon, Loader2, Save, ExternalLink, RefreshCcw, XCircle, Eye, EyeOff, Search, Copy, FileText } from 'lucide-react';
+import { Edit, Trash2, Home, LogIn, Image as ImageIcon, Loader2, Save, ExternalLink, RefreshCcw, XCircle, Eye, EyeOff, Search, Copy, FileText, Check, Filter } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminImageGallery } from '@/components/admin/AdminImageGallery';
 import { AdminLeadsList } from '@/components/admin/AdminLeadsList';
@@ -56,6 +56,7 @@ export default function AdminDashboard() {
   const [selectedFiles, setSelectedFiles] = useState<{ file: File, preview: string }[]>([]);
   const [draftId, setDraftId] = useState<string>(crypto.randomUUID()); // ID for new projects to ensure folder consistency
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
 
   const [formData, setFormData] = useState<Partial<ProjectInsert>>({
@@ -381,7 +382,7 @@ export default function AdminDashboard() {
         ...projectData,
         title: newTitle,
         slug: newSlug,
-        code: project.code ? `${project.code}-COPY` : null,
+        code: null, // Set to null to avoid unique constraint error and force user to set a new unique code
         is_featured: false,
         is_best_seller: false,
         status: 'draft', // Set as draft initially
@@ -420,12 +421,12 @@ export default function AdminDashboard() {
       });
 
       queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error duplicating project:', error);
       toast({
         variant: "destructive",
         title: "Erro ao duplicar",
-        description: "Ocorreu um erro ao duplicar o projeto.",
+        description: error.message || "Ocorreu um erro desconhecido ao duplicar.",
       });
     }
   };
@@ -447,10 +448,12 @@ export default function AdminDashboard() {
 
   const filteredProjects = projects?.filter(project => {
     const searchLower = searchTerm.toLowerCase();
-    return (
+    const matchSearch = (
       project.title.toLowerCase().includes(searchLower) ||
       (project.code && project.code.toLowerCase().includes(searchLower))
     );
+    const matchStatus = statusFilter === 'all' || project.status === statusFilter;
+    return matchSearch && matchStatus;
   });
 
   const sortedProjects = [...(filteredProjects || [])].sort((a, b) => {
@@ -485,6 +488,17 @@ export default function AdminDashboard() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation: Cannot publish without a code
+    if (formData.status === 'published' && !formData.code) {
+      toast({
+        title: "Erro de Validação",
+        description: "É obrigatório informar o Código do Projeto para publicar.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const slug = formData.slug || formData.title?.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
     projectMutation.mutate({ ...formData, slug } as ProjectInsert);
   };
@@ -615,6 +629,24 @@ export default function AdminDashboard() {
                 <CardHeader className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 pb-4">
                   <CardTitle>Projetos Cadastrados ({sortedProjects?.length || 0})</CardTitle>
                   <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                    {/* Status Filter */}
+                    <div className="w-full md:w-40">
+                      <Select
+                        value={statusFilter}
+                        onValueChange={(value: 'all' | 'published' | 'draft') => setStatusFilter(value)}
+                      >
+                        <SelectTrigger>
+                          <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
+                          <SelectValue placeholder="Filtrar por Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          <SelectItem value="published">Publicados</SelectItem>
+                          <SelectItem value="draft">Rascunhos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* Sort Select */}
                     <div className="w-full md:w-48">
                       <Select
@@ -735,8 +767,14 @@ export default function AdminDashboard() {
                                   Destaque
                                 </span>
                               )}
+                              {project.status === 'published' && (
+                                <span className="text-[10px] md:text-xs px-2 py-1 bg-green-100 text-green-800 border border-green-200 rounded-full font-medium whitespace-nowrap flex items-center gap-1">
+                                  <Check className="h-3 w-3" />
+                                  Publicado
+                                </span>
+                              )}
                               {project.status === 'draft' && (
-                                <span className="text-[10px] md:text-xs px-2 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-full font-medium whitespace-nowrap flex items-center gap-1">
+                                <span className="text-[10px] md:text-xs px-2 py-1 bg-red-100 text-red-800 border border-red-200 rounded-full font-medium whitespace-nowrap flex items-center gap-1">
                                   <FileText className="h-3 w-3" />
                                   Rascunho
                                 </span>

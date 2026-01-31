@@ -119,11 +119,22 @@ const HeroSection = () => {
             <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
 
             <div className="relative space-y-6">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-white flex items-center gap-2">
                   <Search className="h-5 w-5 text-primary" />
                   Encontre seu projeto ideal
                 </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-medium text-white/70 hover:text-white transition-all group"
+                >
+                  {isExpanded ? (
+                    <>Menos filtros <Search className="h-3 w-3 rotate-180 transition-transform" /></>
+                  ) : (
+                    <>Mais filtros <Search className="h-3 w-3 transition-transform group-hover:translate-y-0.5" /></>
+                  )}
+                </button>
               </div>
 
               {/* Row 1: Quartos, Banheiros, Suítes, Tipo, Código */}
@@ -299,20 +310,7 @@ const HeroSection = () => {
                 </div>
               )}
 
-              {/* Toggle Button Centered below filters */}
-              <div className="flex justify-center -my-2 relative z-20">
-                <button
-                  type="button"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-[10px] font-medium text-white/50 hover:text-white transition-all group backdrop-blur-md"
-                >
-                  {isExpanded ? (
-                    <>Menos filtros <Search className="h-3 w-3 rotate-180 transition-transform" /></>
-                  ) : (
-                    <>Mais filtros <Search className="h-3 w-3 transition-transform group-hover:translate-y-0.5" /></>
-                  )}
-                </button>
-              </div>
+
 
               {/* Form Footer Actions */}
               <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 border-t border-white/10">
