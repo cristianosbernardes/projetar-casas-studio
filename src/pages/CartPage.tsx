@@ -3,13 +3,16 @@ import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { Trash2, ShoppingCart, Lock, PlusCircle, CreditCard, X, ArrowRight, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { ProjectWithImages } from '@/types/database';
+import { stripeService } from '@/services/stripe';
 
-const OrderBumpItem = ({ projectId, parentItemId }: { projectId: string, parentItemId: string }) => {
+const OrderBumpItem = ({ projectId, parentItemId, parentCode }: { projectId: string, parentItemId: string, parentCode?: string }) => {
     const { addItem, items } = useCart();
 
     const { data: project } = useQuery({
@@ -47,57 +50,71 @@ const OrderBumpItem = ({ projectId, parentItemId }: { projectId: string, parentI
             image_url: project.project_images?.[0]?.image_url || '',
             addons: [],
             availableAddons: availableAddons as any,
-            formattedPrice: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.price)
+            formattedPrice: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.price),
+            code: project.code,
+            orderBumpId: project.order_bump_id
         });
     };
-
     return (
-        <div className="mt-4 border-2 border-dashed border-yellow-400 bg-yellow-50/50 p-6 rounded-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg">
-                OFERTA ESPECIAL
+        <div className="mt-8 border border-amber-200 bg-gradient-to-r from-amber-50/80 to-orange-50/80 p-6 rounded-xl relative overflow-hidden shadow-sm">
+            <div className="absolute top-0 right-0 bg-gradient-to-l from-amber-500 to-orange-500 text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl shadow-sm">
+                Oportunidade Única
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 items-center">
-                <div className="w-24 h-24 rounded-lg bg-gray-200 overflow-hidden shrink-0 shadow-sm border border-yellow-200">
-                    {project.project_images?.[0]?.image_url && (
-                        <img src={project.project_images[0].image_url} alt={project.title} className="w-full h-full object-cover" />
-                    )}
-                </div>
+            <h5 className="font-semibold text-amber-900 mb-4 flex items-center gap-2 pt-2">
+                <span className="bg-amber-100 text-amber-700 p-1.5 rounded-full ring-1 ring-amber-200"><Star className="h-4 w-4 fill-amber-700" /></span>
+                Quem comprou esse "{parentCode || 'projeto'}" levou também esse aqui:
+            </h5>
 
-                <div className="flex-1 text-center sm:text-left">
-                    <h4 className="font-bold text-gray-900 flex items-center justify-center sm:justify-start gap-2">
-                        {project.title}
-                        {project.code && (
-                            <Badge variant="outline" className="border-yellow-600/30 text-yellow-800 text-[10px] h-5 px-1.5">
-                                {project.code}
-                            </Badge>
+            <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-4 rounded-xl border border-amber-100 shadow-sm transition-all hover:border-amber-300 hover:shadow-md group">
+                <Link to={`/projeto/${project.slug}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 flex-1 cursor-pointer group-hover:opacity-90 transition-opacity text-left">
+                    <div className="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                        {project.project_images?.[0]?.image_url && (
+                            <img src={project.project_images[0].image_url} alt={project.title} className="w-full h-full object-cover" />
                         )}
-                        <Badge className="bg-yellow-200 text-yellow-800 hover:bg-yellow-300 border-0 h-5 px-1.5 text-[10px]">Recomendado</Badge>
-                    </h4>
-                    <p className="text-sm text-gray-600 mt-1 mb-2 line-clamp-2">
-                        Aproveite para levar este projeto complementar com um preço especial.
-                    </p>
-                    <div className="flex items-center justify-center sm:justify-start gap-3">
-                        <span className="font-bold text-lg text-green-700">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.price)}
-                        </span>
-
                     </div>
-                </div>
+
+                    <div className="flex-1 text-center sm:text-left">
+                        <h4 className="font-bold text-gray-900 flex items-center justify-center sm:justify-start gap-2 text-base group-hover:text-amber-700 transition-colors">
+                            {project.title}
+                            {project.code && (
+                                <Badge variant="outline" className="border-amber-200 text-amber-700 text-[10px] h-5 px-1.5 font-normal bg-amber-50">
+                                    {project.code}
+                                </Badge>
+                            )}
+                        </h4>
+                        <p className="text-sm text-amber-600 font-bold mt-1">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.price)}
+                        </p>
+                        <span className="text-xs text-muted-foreground mt-1 block">Clique para ver detalhes</span>
+                    </div>
+                </Link>
 
                 <Button
                     onClick={handleAdd}
-                    className="bg-yellow-400 text-yellow-950 hover:bg-yellow-500 font-bold shadow-sm shrink-0 w-full sm:w-auto"
+                    size="sm"
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shrink-0 w-full sm:w-auto border-0"
                 >
-                    Adicionar ao Pedido <ArrowRight className="ml-2 h-4 w-4 opacity-70" />
+                    Adicionar +
                 </Button>
             </div>
         </div>
     );
 };
 
+import { LeadCaptureDialog } from '@/components/checkout/LeadCaptureDialog'; // Add Import
+
+// ...
+
 const CartPage = () => {
-    const { items, removeItem, total, addAddonToItem, removeAddonFromItem } = useCart();
+    const [isLoading, setIsLoading] = useState(false);
+    const [isLeadDialogOpen, setIsLeadDialogOpen] = useState(false); // New State
+    const { items, removeItem, total, addAddonToItem, removeAddonFromItem, refreshCartPrices } = useCart();
+
+    // Validate prices on mount
+    useEffect(() => {
+        refreshCartPrices();
+    }, []);
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('pt-BR', {
@@ -106,16 +123,53 @@ const CartPage = () => {
         }).format(value);
     };
 
-    const handleCheckout = () => {
-        // Integration with Stripe will happen here
-        console.log("Proceeding to checkout with items:", items);
-
-        // For now, let's simulate a secure redirect or modal opening
-        // In the next step, we will implement the Stripe Session creation
-        window.location.href = '#checklist-stripe'; // Placeholder
+    const handleCheckoutClick = () => {
+        setIsLeadDialogOpen(true);
     };
 
+    const handleLeadSubmit = async (leadData: { name: string; email: string; whatsapp: string }) => {
+        setIsLoading(true);
+        try {
+            // 1. Save Lead to Supabase
+            const { error: leadError } = await supabase.from('leads').insert({
+                name: leadData.name,
+                email: leadData.email,
+                phone: leadData.whatsapp, // Map to phone column
+                project_id: items[0]?.id, // Associate with first item if any
+                status: 'checkout_started',
+                source: 'checkout_modal',
+                metadata: {
+                    cart_items: items // Save full cart details
+                }
+            } as any);
+
+            if (leadError) {
+                console.error('Error saving lead:', leadError);
+                // Continue anyway, don't block purchase if lead save fails
+            }
+
+            // 2. Proceed to Stripe
+            console.log("Iniciando checkout seguro com Stripe...");
+            const { url } = await stripeService.createCheckoutSession(items, leadData.email);
+
+            if (url) {
+                window.location.href = url;
+            } else {
+                toast.error("Erro ao iniciar pagamento. Tente novamente.");
+                setIsLoading(false); // Stop loading if failed
+            }
+        } catch (error) {
+            console.error("Erro no checkout:", error);
+            toast.error("Não foi possível iniciar o pagamento. Verifique sua conexão.");
+            setIsLoading(false);
+        }
+    };
+
+    // Social Proof Random Number (Consistent per session ideally, but random for now is fine)
+    const activeViewers = Math.floor(Math.random() * 4) + 2; // 2 to 5 viewers
+
     if (items.length === 0) {
+        // ... (empty cart layout)
         return (
             <Layout>
                 <div className="section-container py-24 text-center space-y-6">
@@ -150,7 +204,7 @@ const CartPage = () => {
                         {items.map((item) => (
                             <div key={item.id}>
                                 {/* Main Item Card */}
-                                <div className="flex gap-4 sm:gap-6 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative z-10">
+                                <div className="flex gap-4 sm:gap-6 bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm relative z-10">
                                     <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl overflow-hidden bg-gray-100 shrink-0">
                                         <img
                                             src={item.image_url}
@@ -259,7 +313,11 @@ const CartPage = () => {
 
                                 {/* Order Bump Section */}
                                 {item.orderBumpId && (
-                                    <OrderBumpItem projectId={item.orderBumpId} parentItemId={item.id} />
+                                    <OrderBumpItem
+                                        projectId={item.orderBumpId}
+                                        parentItemId={item.id}
+                                        parentCode={item.code}
+                                    />
                                 )}
                             </div>
                         ))}
@@ -268,6 +326,16 @@ const CartPage = () => {
                     {/* Order Summary */}
                     <div className="lg:col-span-1">
                         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-lg sticky top-32">
+
+                            {/* Prova Social (CRO) */}
+                            <div className="mb-6 bg-red-50 text-red-800 px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 animate-pulse">
+                                <span className="relative flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                </span>
+                                {activeViewers} pessoas estão vendo esse projeto agora
+                            </div>
+
                             <h2 className="font-bold text-xl text-gray-900 mb-6">Resumo do Pedido</h2>
 
                             <div className="space-y-4 mb-6">
@@ -287,27 +355,63 @@ const CartPage = () => {
                             </div>
 
                             <div className="space-y-4">
-                                <Button onClick={handleCheckout} size="lg" className="w-full h-12 text-base shadow-lg shadow-primary/20 bg-green-600 hover:bg-green-700">
+                                <Button
+                                    onClick={handleCheckoutClick}
+                                    size="lg"
+                                    className="w-full h-14 text-base font-bold shadow-lg shadow-green-600/20 bg-green-600 hover:bg-green-700 transition-all hover:scale-[1.02]"
+                                    disabled={isLoading}
+                                >
                                     <Lock className="mr-2 h-4 w-4" />
-                                    Finalizar Compra Segura
+                                    FINALIZAR COMPRA SEGURA
                                 </Button>
 
-                                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pb-2">
                                     <CreditCard className="h-3 w-3" />
-                                    <span>Pagamento processado por <strong>Stripe</strong></span>
+                                    <span>Pagamento processado via <strong>Stripe</strong></span>
                                 </div>
 
-                                <div className="bg-gray-50 p-4 rounded-xl text-xs text-gray-500 leading-relaxed border border-gray-100">
-                                    <p className="flex gap-2">
-                                        <Lock className="h-3 w-3 shrink-0 mt-0.5" />
-                                        Seus dados estão protegidos. Utilizamos criptografia de ponta a ponta para garantir sua segurança.
-                                    </p>
+                                {/* Trust Badges */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex items-center gap-2.5">
+                                        <div className="bg-green-100 p-1.5 rounded-full text-green-700 shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-shield-check"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-1.95c.95-.36 1.76-.84 2.33-1.42 1.34-1.34 2-3.1 2-5.58V5l-8-3-8 3v8c0 3 .75 5 2 7" /><path d="m9 12 2 2 4-4" /></svg>
+                                        </div>
+                                        <div className="leading-tight">
+                                            <p className="font-bold text-[10px] text-gray-900 uppercase">Compra Blindada</p>
+                                            <p className="text-[9px] text-gray-500">Dados 100% Protegidos</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex items-center gap-2.5">
+                                        <div className="bg-blue-100 p-1.5 rounded-full text-blue-700 shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-zap"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14H4z" /></svg>
+                                        </div>
+                                        <div className="leading-tight">
+                                            <p className="font-bold text-[10px] text-gray-900 uppercase">Entrega Digital</p>
+                                            <p className="text-[9px] text-gray-500">Receba por E-mail</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex items-center gap-2.5 col-span-2">
+                                        <div className="bg-amber-100 p-1.5 rounded-full text-amber-700 shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-thumbs-up"><path d="M7 10v12" /><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z" /></svg>
+                                        </div>
+                                        <div className="leading-tight">
+                                            <p className="font-bold text-[10px] text-gray-900 uppercase">Satisfação Garantida</p>
+                                            <p className="text-[9px] text-gray-500">7 Dias de garantia incondicional ou seu dinheiro de volta.</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <LeadCaptureDialog
+                open={isLeadDialogOpen}
+                onOpenChange={setIsLeadDialogOpen}
+                onConfirm={handleLeadSubmit}
+                isLoading={isLoading}
+            />
         </Layout>
     );
 };

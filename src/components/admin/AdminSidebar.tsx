@@ -94,7 +94,7 @@ export function AdminSidebar({ currentView, onViewChange, onLogout }: AdminSideb
                     <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Gestão</p>
                 </div>
 
-                <NavButton view="modifications" icon={Settings} label="Solicitações" className="[&>svg]:rotate-90" />
+                <NavButton view="modifications" icon={Settings} label="Projetos Personaliz." className="[&>svg]:rotate-90" />
                 <NavButton view="leads" icon={Users} label="CRM de Vendas" />
                 <NavButton view="financial" icon={DollarSign} label="Financeiro" />
                 <NavButton view="cms" icon={Globe} label="Conteúdo Site" />

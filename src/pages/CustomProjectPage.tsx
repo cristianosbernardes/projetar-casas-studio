@@ -73,7 +73,7 @@ const CustomProjectPage = () => {
                 country_ddi: formData.country_ddi,
                 attachment_url: formData.attachment_url,
                 status: 'new'
-            });
+            } as any);
 
             if (error) throw error;
 
@@ -81,11 +81,13 @@ const CustomProjectPage = () => {
                 title: "Solicitação Recebida!",
                 description: "Vamos analisar seu terreno e entrar em contato.",
                 duration: 5000,
+                className: "bg-emerald-600 text-white border-emerald-700",
             });
 
-            const phoneNumber = '5593999999999';
-            const message = `Olá! Preenchi o formulário de Projeto Personalizado.\n\n*Cliente:* ${formData.name}\n*Topografia:* ${formData.topography}`;
-            window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+            // WhatsApp redirection removed as per user request
+            // const phoneNumber = '5593999999999';
+            // const message = `Olá! Preenchi o formulário de Projeto Personalizado.\n\n*Cliente:* ${formData.name}\n*Topografia:* ${formData.topography}`;
+            // window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
 
             setFormData({
                 name: '',
@@ -104,11 +106,11 @@ const CustomProjectPage = () => {
                 attachment_url: null
             });
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error submitting form:', error);
             toast({
                 title: "Erro ao enviar",
-                description: "Tente novamente ou chame no WhatsApp.",
+                description: error.message || "Tente novamente ou chame no WhatsApp.",
                 variant: "destructive",
             });
         } finally {
@@ -435,20 +437,28 @@ const CustomProjectPage = () => {
                                                 onChange={handleChange}
                                             />
 
-                                            <Input
-                                                name="email"
-                                                required
-                                                type="email"
-                                                placeholder="E-mail principal"
-                                                className="bg-neutral-50"
-                                                value={formData.email}
-                                                onChange={handleChange}
-                                            />
+                                            <div className="relative group">
+                                                <Input
+                                                    name="email"
+                                                    required
+                                                    type="email"
+                                                    placeholder="E-mail principal"
+                                                    className={cn(
+                                                        "bg-neutral-50",
+                                                        formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) ? "border-red-300 focus:border-red-500 focus:ring-red-200" : ""
+                                                    )}
+                                                    value={formData.email}
+                                                    onChange={handleChange}
+                                                />
+                                                {formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) && (
+                                                    <p className="text-[10px] text-red-500 absolute -bottom-4 left-0">Digite um e-mail válido</p>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <div className="space-y-2">
                                             <Label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Localização</Label>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 relative">
                                                 <div className="w-[140px]">
                                                     <Select
                                                         value={formData.country}
@@ -486,11 +496,20 @@ const CustomProjectPage = () => {
                                                     <Input
                                                         name="whatsapp"
                                                         required
-                                                        placeholder="WhatsApp"
-                                                        className="bg-neutral-50 pl-[4.5rem]"
+                                                        placeholder="WhatsApp (apenas números)"
+                                                        className={cn(
+                                                            "bg-neutral-50 pl-[4.5rem]",
+                                                            formData.whatsapp && formData.whatsapp.length < 9 ? "border-red-300 focus:border-red-500 focus:ring-red-200" : ""
+                                                        )}
                                                         value={formData.whatsapp}
-                                                        onChange={handleChange}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                                            setFormData(prev => ({ ...prev, whatsapp: value }));
+                                                        }}
                                                     />
+                                                    {formData.whatsapp && formData.whatsapp.length < 9 && (
+                                                        <p className="text-[10px] text-red-500 absolute -bottom-4 left-0">Digite um número válido</p>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -519,8 +538,11 @@ const CustomProjectPage = () => {
 
                                     <Button
                                         type="submit"
-                                        disabled={loading}
-                                        className="w-full h-12 bg-neutral-900 hover:bg-black text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                        disabled={loading || !formData.name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) || formData.whatsapp.length < 9}
+                                        className={cn(
+                                            "w-full h-12 bg-neutral-900 hover:bg-black text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5",
+                                            (loading || !formData.name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) || formData.whatsapp.length < 9) && "opacity-50 cursor-not-allowed hover:transform-none"
+                                        )}
                                     >
                                         {loading ? (
                                             <Loader2 className="w-5 h-5 animate-spin" />

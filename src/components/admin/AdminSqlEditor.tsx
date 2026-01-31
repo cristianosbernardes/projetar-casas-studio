@@ -441,6 +441,84 @@ BEGIN
   -- Adiciona a tabela ao realtime
   ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
 END $$;`
+        },
+        {
+            name: "🔒 Criar Tabela de Leads (Corrigida)",
+            description: "Cria a tabela leads correta para captura de checkout e CRM",
+            sql: `-- Garantir que a tabela leads existe corretamente
+create table if not exists public.leads (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  name text not null,
+  email text not null,
+  whatsapp text,
+  project_id uuid references public.projects(id),
+  status text default 'new',
+  source text default 'checkout_modal'
+);
+
+-- Habilitar RLS
+alter table public.leads enable row level security;
+
+-- Política de inserção (qualquer um pode criar lead no checkout)
+create policy "Anyone can insert leads"
+  on public.leads for insert
+  with check (true);
+
+-- Política de leitura (apenas autenticados/admin)
+create policy "Authenticated users can view leads"
+  on public.leads for select
+  using (auth.role() = 'authenticated');`
+        },
+        {
+            name: "📝 Adicionar Metadados em Leads",
+            description: "Adiciona coluna JSONB para salvar detalhes do carrinho (addons, múltiplos itens)",
+            sql: `-- Adicionar coluna metadata se não existir
+alter table public.leads 
+add column if not exists metadata jsonb default '{}'::jsonb;`
+        },
+        {
+            name: "🔧 Corrigir Tabela Leads (Colunas Faltantes)",
+            description: "Cria as colunas necessárias para o formulário de projetos personalizados.",
+            sql: `ALTER TABLE leads ADD COLUMN IF NOT EXISTS topography text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS width text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS depth text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS phase text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS timeline text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS want_bbq boolean DEFAULT false;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS want_call boolean DEFAULT false;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS call_time text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS source text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS country text DEFAULT 'BR';
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS country_ddi text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS attachment_url text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS status text DEFAULT 'new';
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS whatsapp text;`
+        },
+        {
+            name: "🔓 Liberar Inserção em Leads (RLS)",
+            description: "Permite que qualquer pessoa (mesmo sem login) envie formulários.",
+            sql: `-- Habilitar RLS
+ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
+
+-- Remover política antiga se existir
+DROP POLICY IF EXISTS "Anyone can insert leads" ON public.leads;
+
+-- Criar política permissiva para inserção
+CREATE POLICY "Anyone can insert leads"
+ON public.leads
+FOR INSERT
+WITH CHECK (true);
+
+-- Garantir leitura para autenticados (Admin)
+DROP POLICY IF EXISTS "Authenticated users can view leads" ON public.leads;
+
+CREATE POLICY "Authenticated users can view leads"
+ON public.leads
+FOR SELECT
+USING (auth.role() = 'authenticated');`
         }
     ];
 

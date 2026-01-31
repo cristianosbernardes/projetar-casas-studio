@@ -2,6 +2,8 @@ import { ReactNode } from 'react';
 import Header from './Header';
 import Footer from './Footer';
 import WhatsAppButton from './WhatsAppButton';
+import { Toaster } from '@/components/ui/sonner';
+import { ExitIntentPopup } from '@/components/marketing/ExitIntentPopup';
 
 import StickySearchHeader from './StickySearchHeader';
 
@@ -19,8 +21,11 @@ const Layout = ({ children }: LayoutProps) => {
       </main>
       <Footer />
       <WhatsAppButton />
+      <Toaster />
+      <ExitIntentPopup />
     </div>
   );
 };
 
 export default Layout;
+

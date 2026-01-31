@@ -45,13 +45,54 @@ export function AdminModificationsList() {
     const { data: requests, isLoading } = useQuery({
         queryKey: ['modification-requests'],
         queryFn: async () => {
-            const { data, error } = await supabase
+            // 1. Buscar Modificações
+            const { data: mods, error: modsError } = await supabase
                 .from('modification_requests')
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
-            return data as ModificationRequest[];
+            if (modsError) throw modsError;
+
+            // 2. Buscar Projetos Personalizados (Leads com source especifico)
+            const { data: customLeads, error: leadsError } = await supabase
+                .from('leads')
+                .select('*')
+                .eq('source', 'custom_project_page')
+                .order('created_at', { ascending: false });
+
+            if (leadsError) throw leadsError;
+
+            // 3. Normalizar Leads para formato ModificationRequest
+            const normalizedLeads: ModificationRequest[] = (customLeads as any[])?.map(lead => ({
+                id: lead.id,
+                created_at: lead.created_at,
+                name: lead.name,
+                email: lead.email,
+                whatsapp: lead.phone || '', // Mapeando phone -> whatsapp
+                country: lead.country,
+                country_ddi: lead.country_ddi,
+                project_title: 'Projeto Personalizado',
+                project_code: null,
+                project_id: null,
+                topography: lead.topography,
+                width: lead.width,
+                depth: lead.depth,
+                description: lead.message || '', // Mapeando message -> description
+                phase: null,
+                timeline: null,
+                want_bbq: lead.want_bbq,
+                want_call: lead.want_call,
+                call_time: lead.call_time,
+                source: 'custom_project_page',
+                status: lead.status
+            })) || [];
+
+            // 4. Unir e Ordenar
+            const allRequests = [...(mods || []), ...normalizedLeads].sort((a, b) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+
+            return allRequests;
         },
     });
 
@@ -77,54 +118,60 @@ export function AdminModificationsList() {
     });
 
     const updateStatusMutation = useMutation({
-        mutationFn: async ({ id, status }: { id: string; status: string }) => {
+        mutationFn: async ({ id, status, source }: { id: string; status: string, source?: string | null }) => {
             const currentRequest = requests?.find(r => r.id === id);
             const oldStatus = currentRequest?.status;
 
-            // 1. Atualizar status
+            // 1. Atualizar status (Verificar origem para saber qual tabela atualizar)
             // @ts-ignore
+            const table = source === 'custom_project_page' ? 'leads' : 'modification_requests';
+
             const { error: updateError } = await supabase
-                .from('modification_requests')
+                .from(table as any)
                 .update({ status })
                 .eq('id', id);
 
             if (updateError) throw updateError;
 
-            // 2. Registrar no histórico
-            // Tentar obter usuário atual (pode ser nulo se for edge function, mas aqui é client side)
-            const { data: { user } } = await supabase.auth.getUser();
+            // Nota: Histórico só existe para modification_requests por enquanto
+            if (table === 'modification_requests') {
+                // 2. Registrar no histórico
+                const { data: { user } } = await supabase.auth.getUser();
 
-            if (oldStatus !== status) {
-                // @ts-ignore
-                await supabase
-                    .from('modification_history')
-                    .insert({
-                        request_id: id,
-                        previous_status: oldStatus,
-                        new_status: status,
-                        changed_by: user?.id,
-                        notes: `Status alterado de ${oldStatus} para ${status}`
-                    });
-
-                // Log de Auditoria do Sistema
-                logAction({
-                    action: 'UPDATE',
-                    entity: 'LEADS', // Usando LEADS pois modificação é um tipo de lead
-                    entityId: id,
-                    details: {
-                        from: oldStatus,
-                        to: status,
-                        type: 'modification_status_change'
-                    }
-                });
+                if (oldStatus !== status) {
+                    await supabase
+                        .from('modification_history')
+                        .insert({
+                            request_id: id,
+                            previous_status: oldStatus,
+                            new_status: status,
+                            changed_by: user?.id,
+                            notes: `Status alterado de ${oldStatus} para ${status}`
+                        } as any);
+                }
             }
+
+            // Log de Auditoria
+            logAction({
+                action: 'UPDATE',
+                entity: 'LEADS',
+                entityId: id,
+                details: {
+                    from: oldStatus,
+                    to: status,
+                    type: 'status_change',
+                    source_table: table
+                }
+            });
+
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['modification-requests'] });
-            queryClient.invalidateQueries({ queryKey: ['modification-history'] });
+            // Se eu adicionei custom projects no queryKey, preciso invalidar.
+            // Mas o queryFn busca tudo junto.
             toast({ title: "Status atualizado com sucesso!" });
             if (selectedRequest) {
-                setSelectedRequest(prev => prev ? { ...prev, status: 'contacted' } : null); // Isso pode precisar de ajuste lógico dependendo do status novo
+                setSelectedRequest(prev => prev ? { ...prev, status: 'contacted' } : null);
             }
         },
         onError: () => {
@@ -421,7 +468,7 @@ export function AdminModificationsList() {
                                     <TableHead>Data</TableHead>
                                     <TableHead>Cliente</TableHead>
                                     <TableHead>Projeto</TableHead>
-                                    <TableHead>Fase / Prazo</TableHead>
+                                    <TableHead>Tipo</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
@@ -462,25 +509,15 @@ export function AdminModificationsList() {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col text-xs gap-1">
-                                                    <div className='flex items-center gap-1'>
-                                                        <span className='font-semibold text-gray-500'>Fase:</span>
-                                                        {req.phase === 'idea' && 'Ideia'}
-                                                        {req.phase === 'planning' && 'Planejamento'}
-                                                        {req.phase === 'ready' && 'Pronto p/ construir'}
-                                                    </div>
-                                                    <div className='flex items-center gap-1'>
-                                                        <span className='font-semibold text-gray-500'>Prazo:</span>
-                                                        {req.timeline === '30-days' ? (
-                                                            <Badge variant="destructive" className="h-5 px-1 text-[10px]">
-                                                                🔥 Urgente (30d)
-                                                            </Badge>
-                                                        ) : (
-                                                            <span>
-                                                                {req.timeline === '3-months' && 'Médio (3 meses)'}
-                                                                {req.timeline === 'undefined' && 'Indefinido'}
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                                    {req.source === 'custom_project_page' ? (
+                                                        <Badge variant="secondary" className="w-fit bg-purple-100 text-purple-700 hover:bg-purple-200 border-0 font-semibold">
+                                                            ✨ Projeto Personalizado
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="w-fit bg-gray-50 text-gray-600 border-gray-200 font-medium">
+                                                            ✏️ Modificação
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
@@ -508,16 +545,16 @@ export function AdminModificationsList() {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: req.id, status: 'new' })}>
+                                                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: req.id, status: 'new', source: req.source })}>
                                                                 Marcar como Novo
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: req.id, status: 'contacted' })}>
+                                                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: req.id, status: 'contacted', source: req.source })}>
                                                                 Marcar como Contatado
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: req.id, status: 'deal' })}>
+                                                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: req.id, status: 'deal', source: req.source })}>
                                                                 Marcar como Fechado (Ganho)
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: req.id, status: 'closed' })}>
+                                                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: req.id, status: 'closed', source: req.source })}>
                                                                 Arquivar
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>

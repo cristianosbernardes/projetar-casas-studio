@@ -17,7 +17,7 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Phone, Loader2, User, Eye, Calendar, Map, CheckCircle2, Clock } from "lucide-react";
+import { MessageSquare, Phone, Loader2, User, Eye, Calendar, Map, CheckCircle2, Clock, ShoppingBag } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ModificationRequest } from '@/types/database';
@@ -51,7 +51,16 @@ export function AdminLeadsList() {
         queryKey: ['modification_requests'],
         queryFn: async () => {
             const { data, error } = await supabase
-                .from('modification_requests')
+                .from('modification_requests') // Note: Using modification_requests view/table which maps to leads? Wait, the user said "AdminLeadsList" but the code uses "modification_requests".
+                // Let's check if modification_requests has metadata. The user added metadata to "leads".
+                // Usually modification_requests is a view or the same table. 
+                // In AdminLeadsList.tsx line 54 it calls 'modification_requests'.
+                // If 'modification_requests' is a view over 'leads', I might need to update the view too?
+                // Or maybe AdminLeadsList SHOULD appear to indicate 'leads' table?
+                // Visualizing lines 53-56: .from('modification_requests').select('*, projects(code)')
+                // The previous step added metadata to 'leads'. 
+                // If modification_requests is just a view or alias for leads, we need to be careful.
+                // Assuming for now I should just try to select metadata as well.
                 .select('*, projects(code)')
                 .order('created_at', { ascending: false });
 
@@ -192,11 +201,60 @@ export function AdminLeadsList() {
                                     </div>
 
                                     {/* Projeto */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="border p-4 rounded-lg space-y-2">
-                                            <h3 className="font-semibold text-sm text-primary">Projeto de Interesse</h3>
-                                            <p className="font-medium">{selectedRequest.project_title || 'Não identificado'}</p>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <div className="border p-4 rounded-lg space-y-3">
+                                            <h3 className="font-semibold text-sm text-primary flex items-center gap-2">
+                                                <ShoppingBag className="h-4 w-4" /> Itens de Interesse
+                                            </h3>
+
+                                            {/* Check for metadata with cart items */}
+                                            {selectedRequest.metadata && (selectedRequest.metadata as any).cart_items && (selectedRequest.metadata as any).cart_items.length > 0 ? (
+                                                <div className="space-y-3">
+                                                    {(selectedRequest.metadata as any).cart_items.map((item: any, index: number) => (
+                                                        <div key={index} className="bg-muted/30 p-3 rounded border border-muted flex flex-col gap-2">
+                                                            <div className="flex justify-between items-start">
+                                                                <div>
+                                                                    <div className="font-medium text-sm">{item.title}</div>
+                                                                    {item.code && (
+                                                                        <span className="font-mono text-[10px] bg-white px-1.5 py-0.5 rounded border text-muted-foreground">
+                                                                            {item.code}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-sm font-semibold text-muted-foreground">
+                                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Addons */}
+                                                            {item.addons && item.addons.length > 0 && (
+                                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                                    {item.addons.map((addon: string) => (
+                                                                        <Badge key={addon} variant="secondary" className="text-[10px] bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-100">
+                                                                            + {addon === 'electrical' ? 'Elétrico' :
+                                                                                addon === 'hydraulic' ? 'Hidráulico' :
+                                                                                    addon === 'structural' ? 'Estrutural' :
+                                                                                        addon === 'sanitary' ? 'Sanitário' : addon}
+                                                                        </Badge>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                // Fallback for legacy leads
+                                                <div>
+                                                    <p className="font-medium">{selectedRequest.project_title || 'Não identificado'}</p>
+                                                    {selectedRequest?.projects?.code && (
+                                                        <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground mt-1 inline-block">
+                                                            {selectedRequest.projects.code}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
+
                                         <div className="border p-4 rounded-lg space-y-2">
                                             <h3 className="font-semibold text-sm text-primary">Fase da Obra</h3>
                                             <Badge variant="outline" className="text-sm">

@@ -10,7 +10,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, MoreVertical, Phone, Calendar, DollarSign, User, ArrowRight, Ban, CheckCircle2, MapPin, MessageSquare } from 'lucide-react';
+import { Loader2, MoreVertical, Phone, Calendar, DollarSign, User, ArrowRight, Ban, CheckCircle2, MapPin, MessageSquare, ShoppingBag } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -278,12 +278,47 @@ export function AdminCRM() {
                         <div className="space-y-4">
                             <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
                                 <MapPin className="h-5 w-5 text-primary" />
-                                Terreno & Projeto
+                                Carrinho & Projeto
                             </h3>
+
+                            {/* Metadata / Cart Items Display */}
+                            {selectedLead?.metadata && (selectedLead.metadata as any).cart_items && (selectedLead.metadata as any).cart_items.length > 0 && (
+                                <div className="bg-muted/30 p-3 rounded-lg border border-muted space-y-3 mb-3">
+                                    <h4 className="text-sm font-semibold text-primary flex items-center gap-2">
+                                        <ShoppingBag className="h-3.5 w-3.5" /> Itens no Carrinho
+                                    </h4>
+                                    {(selectedLead.metadata as any).cart_items.map((item: any, index: number) => (
+                                        <div key={index} className="bg-white p-2 rounded border border-gray-100 shadow-sm flex flex-col gap-1">
+                                            <div className="flex justify-between items-start">
+                                                <span className="font-medium text-sm">{item.title}</span>
+                                                <span className="text-xs font-semibold text-green-600">
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
+                                                </span>
+                                            </div>
+                                            {item.code && (
+                                                <span className="text-[10px] text-muted-foreground bg-gray-50 px-1 rounded w-fit">Ref: {item.code}</span>
+                                            )}
+                                            {item.addons && item.addons.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    {item.addons.map((addon: string) => (
+                                                        <Badge key={addon} variant="secondary" className="text-[9px] h-4 px-1 bg-blue-50 text-blue-700 border-blue-100">
+                                                            + {addon === 'electrical' ? 'Elétrico' :
+                                                                addon === 'hydraulic' ? 'Hidráulico' :
+                                                                    addon === 'structural' ? 'Estrutural' :
+                                                                        addon === 'sanitary' ? 'Sanitário' : addon}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
                             <div className="space-y-2">
                                 <p className="text-sm">
                                     <span className="font-medium">Dimensões:</span>{' '}
-                                    {selectedLead?.width}m (frente) x {selectedLead?.depth}m (fundo)
+                                    {selectedLead?.width ? `${selectedLead.width}m (frente) x ${selectedLead.depth}m (fundo)` : 'Não informado'}
                                 </p>
                                 <p className="text-sm">
                                     <span className="font-medium">Topografia:</span>{' '}

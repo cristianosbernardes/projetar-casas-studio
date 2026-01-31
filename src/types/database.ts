@@ -169,6 +169,7 @@ export interface Database {
           source: string | null
           country: string | null
           country_ddi: string | null
+          metadata: Json | null // Added
         }
         Insert: {
           id?: string
