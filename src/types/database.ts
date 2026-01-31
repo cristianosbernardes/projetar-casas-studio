@@ -35,6 +35,7 @@ export interface Database {
           price_structural: number | null
           views: number | null
           status: 'published' | 'draft' | 'archived'
+          order_bump_id: string | null // Added
         }
         Insert: {
           id?: string
@@ -61,6 +62,7 @@ export interface Database {
           price_structural?: number | null
           views?: number | null
           status?: 'published' | 'draft' | 'archived'
+          order_bump_id?: string | null // Added
         }
         Update: {
           id?: string
@@ -87,6 +89,7 @@ export interface Database {
           price_structural?: number | null
           views?: number | null
           status?: 'published' | 'draft' | 'archived'
+          order_bump_id?: string | null // Added
         }
       }
       project_images: {

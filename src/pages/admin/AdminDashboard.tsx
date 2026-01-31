@@ -1121,6 +1121,58 @@ export default function AdminDashboard() {
                   </CardContent>
                 </Card>
 
+                {/* Sales Strategy Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Estratégia de Vendas</CardTitle>
+                    <CardDescription>Configure ofertas especiais e destaques para este projeto.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 border p-4 rounded-lg bg-emerald-500/5 border-emerald-500/20 h-full">
+                          <Switch
+                            checked={formData.is_best_seller}
+                            onCheckedChange={(c) => setFormData({ ...formData, is_best_seller: c })}
+                            className="data-[state=checked]:bg-emerald-500"
+                          />
+                          <div>
+                            <Label className="block">Marcar como "Mais Vendido"</Label>
+                            <span className="text-xs text-muted-foreground">Aparecerá na seção de destaques de vendas</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="border p-4 rounded-lg bg-accent/5">
+                          <Label className="mb-2 block">Order Bump (Oferta Especial no Carrinho)</Label>
+                          <Select
+                            value={formData.order_bump_id || "none"}
+                            onValueChange={(value) => setFormData({ ...formData, order_bump_id: value === "none" ? null : value })}
+                          >
+                            <SelectTrigger className="bg-background">
+                              <SelectValue placeholder="Selecione um projeto para recomendar" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Nenhum (Padrão)</SelectItem>
+                              {projects
+                                ?.filter(p => p.id !== editingProject?.id) // Prevent self-selection
+                                .map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.code ? `[${p.code}] ` : ''}{p.title} - R$ {p.price}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Se selecionado, este projeto aparecerá como uma oferta especial ("Leve Também") logo abaixo do item no carrinho.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Additional Projects Prices */}
                 <Card>
                   <CardHeader>

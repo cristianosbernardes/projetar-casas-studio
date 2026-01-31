@@ -66,6 +66,11 @@ export const AdminSqlEditor = () => {
 
     const presets = [
         {
+            name: "🚀 Habilitar Order Bump",
+            description: "Adiciona a coluna order_bump_id na tabela projects para permitir ofertas especiais",
+            sql: `ALTER TABLE projects ADD COLUMN IF NOT EXISTS order_bump_id UUID REFERENCES projects(id);`
+        },
+        {
             name: "🏆 Adicionar Feature Mais Vendidos",
             description: "Adiciona coluna is_best_seller e índices para destaque na Home",
             sql: `-- Adicionar flag de "Mais Vendido" na tabela de projetos

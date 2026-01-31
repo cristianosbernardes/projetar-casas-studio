@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Phone, Mail, Home, LogIn, MonitorCog, Heart } from 'lucide-react';
+import { Menu, X, Phone, Mail, Home, LogIn, MonitorCog, Heart, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { useFavorites } from '@/contexts/FavoritesContext';
+import { useCart } from '@/contexts/CartContext';
 
 const Header = () => {
   // Header Component - Main Navigation
@@ -14,6 +15,8 @@ const Header = () => {
   const { role, isLoading } = useUserRole();
   const [user, setUser] = useState<any>(null);
   const { count } = useFavorites();
+  const { items } = useCart();
+  const cartItemsCount = items.length;
 
   useEffect(() => {
     // Check initial user
@@ -124,6 +127,15 @@ const Header = () => {
                 </Button>
               </Link>
             )}
+            <Link to="/carrinho" className="relative group p-2 hover:bg-green-50 rounded-full transition-colors flex items-center justify-center">
+              <ShoppingCart className="h-5 w-5 text-gray-500 group-hover:text-green-600 transition-colors" />
+              {cartItemsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-green-600 text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center shadow-sm animate-in zoom-in">
+                  {cartItemsCount}
+                </span>
+              )}
+            </Link>
+
             <Link to="/projetos">
               <Button size="sm">
                 Ver Projetos

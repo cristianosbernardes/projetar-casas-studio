@@ -14,6 +14,8 @@ import { ModificationJourneyDialog } from '@/components/modals/ModificationJourn
 import { supabase, getOptimizedImageUrl } from '@/integrations/supabase/client';
 import { formatCurrency } from "@/lib/utils";
 import type { ProjectWithImages, PackageType } from '@/types/database';
+import { useCart } from '@/contexts/CartContext';
+import { useNavigate } from 'react-router-dom';
 
 const packageNames: Record<PackageType, string> = {
   architectural: 'Arquitetônico',
@@ -25,6 +27,8 @@ const packageNames: Record<PackageType, string> = {
 
 const ProjectDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
+  const { addItem } = useCart();
+  const navigate = useNavigate();
   // 1. All Hooks Declarations at the TOP
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -44,6 +48,8 @@ const ProjectDetailPage = () => {
       if (error) throw error;
       return data as ProjectWithImages | null;
     },
+    staleTime: 0, // Always fetch fresh data to ensure order_bump_id and code are up to date
+    refetchOnMount: true,
   });
 
   // Track Views (Hook)
@@ -301,7 +307,7 @@ const ProjectDetailPage = () => {
                       </div>
                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-gray-200 shadow-sm">
                         <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cód.</span>
-                        <span className="text-sm font-bold text-gray-900">{project.id?.slice(0, 4)}</span>
+                        <span className="text-sm font-bold text-gray-900">{project.code || project.id?.slice(0, 4)}</span>
                       </div>
                     </div>
 
@@ -339,18 +345,29 @@ const ProjectDetailPage = () => {
                     <ProjectAddons
                       project={project}
                       onCheckout={async (selected, total) => {
-                        try {
-                          const response = await fetch('/api/mock-checkout', {
-                            method: 'POST',
-                            body: JSON.stringify({ projectId: project.id, addons: selected })
-                          });
-                          console.log('Checkout initiated for:', project.title, selected);
-                          await new Promise(r => setTimeout(r, 1500));
-                          alert(`Pagamento Simulado com Sucesso!\n\nProjeto: ${project.title}\nAdicionais: ${selected.join(', ')}\nTotal: ${formatCurrency(total)}\n\n(ID da Sessão: mock_${Date.now()})`);
-                        } catch (error) {
-                          console.error('Checkout error:', error);
-                          alert('Erro ao iniciar checkout.');
-                        }
+                        // ADD TO CART LOGIC
+                        if (!project?.id) return;
+
+                        const availableAddons = [];
+                        if (project.price_electrical) availableAddons.push({ id: 'electrical', label: 'Projeto Elétrico', price: project.price_electrical });
+                        if (project.price_hydraulic) availableAddons.push({ id: 'hydraulic', label: 'Projeto Hidráulico', price: project.price_hydraulic });
+                        if (project.price_structural) availableAddons.push({ id: 'structural', label: 'Projeto Estrutural', price: project.price_structural });
+                        // Add package logic for combined if needed, but keeping simple for now
+
+                        addItem({
+                          id: project.id,
+                          title: project.title,
+                          basePrice: project.price,
+                          price: total,
+                          image_url: project.project_images?.[0]?.image_url || '',
+                          addons: selected, // Pass selected addons
+                          availableAddons: availableAddons,
+                          formattedPrice: formatCurrency(total),
+                          code: project.code,
+                          orderBumpId: project.order_bump_id
+                        });
+
+                        navigate('/carrinho');
                       }}
                     />
                   ) : (
@@ -360,10 +377,31 @@ const ProjectDetailPage = () => {
                         <span className="text-xs text-muted-foreground">O melhor custo benefício</span>
                       </div>
                       <Button
-                        className="w-full h-12 font-bold text-base bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200"
-                        onClick={() => handleWhatsAppWithPackages(['architectural'], project.price)}
+                        className="w-full h-12 font-bold text-base bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 uppercase"
+                        onClick={() => {
+                          if (!project?.id) return;
+
+                          const availableAddons = [];
+                          if (project.price_electrical) availableAddons.push({ id: 'electrical', label: 'Projeto Elétrico', price: project.price_electrical });
+                          if (project.price_hydraulic) availableAddons.push({ id: 'hydraulic', label: 'Projeto Hidráulico', price: project.price_hydraulic });
+                          if (project.price_structural) availableAddons.push({ id: 'structural', label: 'Projeto Estrutural', price: project.price_structural });
+
+                          addItem({
+                            id: project.id,
+                            title: project.title,
+                            basePrice: project.price,
+                            price: project.price,
+                            image_url: project.project_images?.[0]?.image_url || '',
+                            addons: [],
+                            availableAddons: availableAddons,
+                            formattedPrice: formatCurrency(project.price),
+                            orderBumpId: project.order_bump_id,
+                            code: project.code, // Add code here
+                          });
+                          navigate('/carrinho');
+                        }}
                       >
-                        Comprar Agora
+                        COMPRAR PROJETO AGORA
                       </Button>
                     </div>
                   )}
